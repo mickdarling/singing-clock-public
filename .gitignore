@@ -1,0 +1,9 @@
+data.json
+score_cache.json
+diffstat_cache.json
+enrich_cache.json
+score_snapshots.json
+history.json
+__pycache__/
+.DS_Store
+.local/

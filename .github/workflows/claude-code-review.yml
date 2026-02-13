@@ -1,0 +1,45 @@
+name: Claude Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review, reopened]
+
+jobs:
+  claude-review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: read
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Claude Code Review
+        id: claude-review
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          trigger_phrase: ""
+          prompt: |
+            Review PR #${{ github.event.pull_request.number }} in this repository.
+
+            Read the full diff with `gh pr diff ${{ github.event.pull_request.number }}` and review the changed files in the repo.
+
+            Provide a thorough code review covering:
+            1. **Correctness** — logic errors, off-by-one, edge cases, unhandled errors
+            2. **Security** — injection risks, unsafe input handling, secrets exposure
+            3. **Performance** — unnecessary work, O(n²) where O(n) suffices, missing caching opportunities
+            4. **Maintainability** — unclear naming, missing context for tricky logic, overly clever code
+            5. **Architecture** — does the approach fit the existing codebase patterns?
+
+            For each issue found, cite the file and line number. Distinguish blocking issues from suggestions.
+            If the code looks good, say so — don't invent problems.
+
+            Post your review as a PR comment using `gh pr comment`.
+          claude_args: "--allowedTools 'Bash(gh pr diff:*)' 'Bash(gh pr view:*)' 'Bash(gh pr comment:*)' 'Read' 'Glob' 'Grep'"
+

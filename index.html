@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Singing Clock - Convergence Countdown</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.1.0/dist/chartjs-plugin-annotation.min.js"></script>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text-dim: #8b949e;
+    --teal: #4ecdc4;
+    --red: #ff6b6b;
+    --yellow: #ffd93d;
+    --purple: #b380ff;
+    --blue: #58a6ff;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace;
+    min-height: 100vh;
+    padding: 2rem;
+  }
+
+  .hero {
+    text-align: center;
+    padding: 3rem 1rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 2rem;
+  }
+
+  .hero h1 {
+    font-size: 1.2rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.3em;
+    margin-bottom: 1rem;
+  }
+
+  .countdown {
+    font-size: 5rem;
+    font-weight: 700;
+    color: var(--teal);
+    line-height: 1;
+    margin-bottom: 0.5rem;
+  }
+
+  .countdown-label {
+    font-size: 1rem;
+    color: var(--text-dim);
+    margin-bottom: 1.5rem;
+  }
+
+  .countdown-detail {
+    font-size: 2rem;
+    color: var(--yellow);
+    margin-bottom: 0.5rem;
+  }
+
+  .meta-stats {
+    display: flex;
+    justify-content: center;
+    gap: 3rem;
+    margin-top: 2rem;
+    flex-wrap: wrap;
+  }
+
+  .stat {
+    text-align: center;
+  }
+
+  .stat-value {
+    font-size: 1.8rem;
+    font-weight: 700;
+  }
+
+  .stat-label {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  .controls {
+    max-width: 1400px;
+    margin: 0 auto 1.5rem;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    align-items: center;
+  }
+
+  .btn {
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.5rem 1.25rem;
+    font-family: inherit;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn:hover { border-color: var(--teal); color: var(--teal); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn:disabled:hover { border-color: var(--border); color: var(--text); }
+
+  .btn-primary {
+    background: var(--teal);
+    color: var(--bg);
+    border-color: var(--teal);
+    font-weight: 700;
+  }
+
+  .btn-primary:hover { background: #3dbdb5; }
+  .btn-primary:disabled { background: var(--border); border-color: var(--border); color: var(--text-dim); }
+
+  .scan-status {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+  }
+
+  .scan-status.running { color: var(--yellow); }
+  .scan-status.done { color: var(--teal); }
+  .scan-status.error { color: var(--red); }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+  .scanning { animation: pulse 1.5s ease-in-out infinite; }
+
+  .charts {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  .chart-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem;
+  }
+
+  .chart-card h2 {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 1rem;
+  }
+
+  .chart-container {
+    position: relative;
+    height: 280px;
+  }
+
+  .progress-bar-container {
+    max-width: 1400px;
+    margin: 0 auto 2rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem;
+  }
+
+  .progress-bar-container h2 {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 1rem;
+  }
+
+  .progress-bar {
+    height: 32px;
+    background: var(--bg);
+    border-radius: 16px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .progress-fill {
+    height: 100%;
+    border-radius: 16px;
+    background: linear-gradient(90deg, var(--teal), var(--blue));
+    transition: width 1s ease;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 12px;
+    font-size: 0.8rem;
+    font-weight: 700;
+  }
+
+  .progress-markers {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 0.5rem;
+    font-size: 0.7rem;
+    color: var(--text-dim);
+  }
+
+  .footer {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-dim);
+    font-size: 0.75rem;
+    border-top: 1px solid var(--border);
+    margin-top: 2rem;
+    max-width: 1400px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .error {
+    text-align: center;
+    padding: 4rem;
+    color: var(--red);
+    font-size: 1.2rem;
+  }
+
+  @media (max-width: 900px) {
+    .charts { grid-template-columns: 1fr; }
+    .countdown { font-size: 3rem; }
+    .countdown-detail { font-size: 1.5rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>Singing Clock</h1>
+  <div class="countdown" id="countdown-days">---</div>
+  <div class="countdown-label">days until graduation</div>
+  <div class="countdown-detail" id="countdown-full">--d --h --m --s</div>
+  <div id="convergence-date" style="color: var(--text-dim); font-size: 0.9rem;"></div>
+  <div class="meta-stats">
+    <div class="stat">
+      <div class="stat-value" style="color: var(--teal);" id="stat-capability">--</div>
+      <div class="stat-label">Self-Sufficiency</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value" style="color: var(--yellow);" id="stat-sophistication">--</div>
+      <div class="stat-label">Sophistication</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value" style="color: var(--red);" id="stat-commits">--</div>
+      <div class="stat-label">Total Commits</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value" style="color: var(--purple);" id="stat-repos">--</div>
+      <div class="stat-label">Repos Scanned</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value" style="color: var(--blue);" id="stat-day">--</div>
+      <div class="stat-label">Day of Project</div>
+    </div>
+  </div>
+</div>
+
+<div class="controls">
+  <span class="scan-status" id="scan-status"></span>
+  <button class="btn-primary btn" id="btn-scan" onclick="triggerScan()">Rescan Repos</button>
+  <button class="btn" onclick="location.reload()">Refresh</button>
+</div>
+
+<div class="progress-bar-container">
+  <h2>Capability Progress</h2>
+  <div class="progress-bar">
+    <div class="progress-fill" id="progress-fill" style="width: 0%;">0%</div>
+  </div>
+  <div class="progress-markers">
+    <span>0% - Inception</span>
+    <span>50%</span>
+    <span>95% - Self-Sufficient</span>
+    <span>100%</span>
+  </div>
+</div>
+
+<div class="drift-container" id="drift-section" style="display:none;">
+  <div class="chart-card" style="max-width:1400px; margin:0 auto 1.5rem;">
+    <h2>Convergence Date Drift</h2>
+    <div class="chart-container" style="height: 300px;"><canvas id="chart-drift"></canvas></div>
+    <div id="drift-summary" style="margin-top:1rem; font-size:0.85rem; color:var(--text-dim); text-align:center;"></div>
+  </div>
+</div>
+
+<div class="charts">
+  <div class="chart-card">
+    <h2>Commit Rate (Actual + Projected)</h2>
+    <div class="chart-container"><canvas id="chart-commits"></canvas></div>
+  </div>
+  <div class="chart-card">
+    <h2>Cumulative Capability</h2>
+    <div class="chart-container"><canvas id="chart-capability"></canvas></div>
+  </div>
+  <div class="chart-card">
+    <h2>Sophistication Trend</h2>
+    <div class="chart-container"><canvas id="chart-sophistication"></canvas></div>
+  </div>
+  <div class="chart-card">
+    <h2>Convergence: Effort vs. Capability</h2>
+    <div class="chart-container"><canvas id="chart-convergence"></canvas></div>
+  </div>
+</div>
+
+<div class="footer" id="footer">
+  Loading data...
+</div>
+
+<script>
+// ─── Globals ────────────────────────────────────────────────────────────
+let DATA = null;
+
+const CHART_DEFAULTS = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: { labels: { color: '#8b949e', font: { family: "'SF Mono', monospace", size: 11 } } },
+  },
+  scales: {
+    x: { ticks: { color: '#8b949e', font: { size: 10 } }, grid: { color: '#21262d' } },
+    y: { ticks: { color: '#8b949e', font: { size: 10 } }, grid: { color: '#21262d' } },
+  },
+};
+
+// ─── Milestone Helpers ──────────────────────────────────────────────────
+// Convert a date string (YYYY-MM-DD) to a month-index relative to the timeline
+function dateToMonthIndex(dateStr, epochMonth) {
+  // epochMonth is [year, month] of index 0
+  const d = new Date(dateStr);
+  return (d.getFullYear() - epochMonth[0]) * 12 + (d.getMonth() - epochMonth[1]);
+}
+
+function makeMilestoneAnnotations(data, epochMonth, labelCount) {
+  const annotations = {};
+  const models = data.models || {};
+
+  const milestones = [
+    { key: 'zero', date: models.commit_rate?.zero_date, label: 'Commits ~ 0', color: '#ff6b6b' },
+    { key: 'cap95', date: models.capability?.pct_95_date, label: '95%', color: '#4ecdc4' },
+    { key: 'cap99', date: models.capability?.pct_99_date, label: '99%', color: '#58a6ff' },
+    { key: 'soph100', date: models.sophistication?.pct_100_date, label: 'Soph 100%', color: '#b380ff' },
+    { key: 'convergence', date: models.convergence_date, label: 'Convergence', color: '#ffd93d' },
+  ];
+
+  for (const m of milestones) {
+    if (!m.date) continue;
+    const idx = dateToMonthIndex(m.date, epochMonth);
+    if (idx < 0 || idx >= labelCount) continue;
+
+    annotations[`line_${m.key}`] = {
+      type: 'line',
+      xMin: idx,
+      xMax: idx,
+      borderColor: m.color,
+      borderWidth: 2,
+      borderDash: [6, 3],
+      label: {
+        display: true,
+        content: m.label,
+        position: 'start',
+        backgroundColor: 'rgba(13,17,23,0.85)',
+        color: m.color,
+        font: { family: "'SF Mono', monospace", size: 10, weight: 'bold' },
+        padding: 4,
+      },
+    };
+  }
+
+  // 95-99% spread band
+  const cap95idx = models.capability?.pct_95_date ? dateToMonthIndex(models.capability.pct_95_date, epochMonth) : null;
+  const cap99idx = models.capability?.pct_99_date ? dateToMonthIndex(models.capability.pct_99_date, epochMonth) : null;
+  if (cap95idx !== null && cap99idx !== null && cap95idx >= 0 && cap99idx < labelCount) {
+    annotations['band_95_99'] = {
+      type: 'box',
+      xMin: cap95idx,
+      xMax: cap99idx,
+      backgroundColor: 'rgba(78, 205, 196, 0.08)',
+      borderColor: 'rgba(78, 205, 196, 0.2)',
+      borderWidth: 1,
+      label: {
+        display: true,
+        content: '95-99% zone',
+        position: { x: 'center', y: 'start' },
+        backgroundColor: 'rgba(13,17,23,0.85)',
+        color: '#4ecdc4',
+        font: { family: "'SF Mono', monospace", size: 9 },
+        padding: 3,
+      },
+    };
+  }
+
+  return annotations;
+}
+
+// ─── Scan Controls ──────────────────────────────────────────────────────
+async function triggerScan() {
+  const btn = document.getElementById('btn-scan');
+  const status = document.getElementById('scan-status');
+
+  btn.disabled = true;
+  status.className = 'scan-status running scanning';
+  status.textContent = 'Scanning repos...';
+
+  try {
+    const resp = await fetch('/api/scan');
+    const result = await resp.json();
+
+    if (result.status === 'already_running') {
+      status.textContent = 'Scan already in progress...';
+    } else {
+      status.textContent = 'Scan started, waiting for results...';
+    }
+
+    // Poll for completion
+    pollForCompletion();
+  } catch (e) {
+    status.className = 'scan-status error';
+    status.textContent = 'Error: server not running. Use python3 server.py';
+    btn.disabled = false;
+  }
+}
+
+async function pollForCompletion() {
+  const btn = document.getElementById('btn-scan');
+  const status = document.getElementById('scan-status');
+  const startTime = Date.now();
+  const origGenerated = DATA?.generated;
+
+  const interval = setInterval(async () => {
+    try {
+      // Check if data.json has been updated
+      const resp = await fetch('data.json?t=' + Date.now());
+      if (resp.ok) {
+        const newData = await resp.json();
+        if (newData.generated !== origGenerated) {
+          clearInterval(interval);
+          status.className = 'scan-status done';
+          status.textContent = `Scan complete! Updated ${new Date(newData.generated).toLocaleTimeString()}`;
+          btn.disabled = false;
+          // Reload page to show new data
+          setTimeout(() => location.reload(), 500);
+          return;
+        }
+      }
+    } catch (e) { /* ignore */ }
+
+    // Timeout after 5 minutes
+    if (Date.now() - startTime > 300000) {
+      clearInterval(interval);
+      status.className = 'scan-status error';
+      status.textContent = 'Scan timed out';
+      btn.disabled = false;
+    }
+  }, 2000);
+}
+
+// ─── Data Loading ───────────────────────────────────────────────────────
+async function loadData() {
+  try {
+    const resp = await fetch('data.json');
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    return await resp.json();
+  } catch (e) {
+    document.querySelector('.hero').innerHTML = `
+      <div class="error">
+        <p>Could not load data.json</p>
+        <p style="font-size: 0.8rem; margin-top: 1rem;">
+          Run <code>python3 scan.py</code> first, then:<br>
+          <code>python3 server.py</code> and open <code>http://localhost:8080</code>
+        </p>
+      </div>`;
+    throw e;
+  }
+}
+
+// ─── Countdown ──────────────────────────────────────────────────────────
+function startCountdown(targetDateStr) {
+  const target = new Date(targetDateStr + 'T00:00:00');
+
+  function update() {
+    const now = new Date();
+    const diff = target - now;
+
+    if (diff <= 0) {
+      document.getElementById('countdown-days').textContent = '0';
+      document.getElementById('countdown-full').textContent = 'GRADUATED';
+      document.getElementById('countdown-full').style.color = '#4ecdc4';
+      return;
+    }
+
+    const days = Math.floor(diff / 86400000);
+    const hours = Math.floor((diff % 86400000) / 3600000);
+    const mins = Math.floor((diff % 3600000) / 60000);
+    const secs = Math.floor((diff % 60000) / 1000);
+
+    document.getElementById('countdown-days').textContent = days;
+    document.getElementById('countdown-full').textContent =
+      `${days}d ${String(hours).padStart(2,'0')}h ${String(mins).padStart(2,'0')}m ${String(secs).padStart(2,'0')}s`;
+  }
+
+  update();
+  setInterval(update, 1000);
+}
+
+// ─── Charts ─────────────────────────────────────────────────────────────
+function getEpochMonth(data) {
+  const first = data.monthly[0]?.month || '2025-06';
+  return [parseInt(first.split('-')[0]), parseInt(first.split('-')[1]) - 1];
+}
+
+function renderCommitChart(data) {
+  const monthly = data.monthly;
+  const projection = data.models?.commit_rate?.projection || [];
+  const epochMonth = getEpochMonth(data);
+
+  const allLabels = [...monthly.map(m => m.month), ...projection.map(p => p.month)];
+  const actualData = monthly.map(m => m.commits);
+
+  const model = data.models?.commit_rate;
+  const fittedLine = model ? allLabels.map((_, i) => {
+    const ex = model.r * (i - model.t_mid);
+    if (Math.abs(ex) > 50) return 0;
+    const sig = 1 / (1 + Math.exp(-ex));
+    return Math.round(model.L * model.r * sig * (1 - sig));
+  }) : [];
+
+  new Chart(document.getElementById('chart-commits'), {
+    type: 'bar',
+    data: {
+      labels: allLabels.map(l => l.substring(2)),
+      datasets: [
+        {
+          label: 'Actual Commits',
+          data: [...actualData, ...projection.map(() => null)],
+          backgroundColor: 'rgba(255, 107, 107, 0.6)',
+          borderColor: '#ff6b6b',
+          borderWidth: 1,
+        },
+        {
+          label: 'Model Fit + Projection',
+          data: fittedLine,
+          type: 'line',
+          borderColor: '#ffd93d',
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.4,
+          fill: false,
+        },
+      ],
+    },
+    options: {
+      ...CHART_DEFAULTS,
+      plugins: {
+        ...CHART_DEFAULTS.plugins,
+        annotation: { annotations: makeMilestoneAnnotations(data, epochMonth, allLabels.length) },
+      },
+    },
+  });
+}
+
+function renderCapabilityChart(data) {
+  const monthly = data.monthly;
+  const model = data.models?.capability;
+  const projection = model?.projection || [];
+  const epochMonth = getEpochMonth(data);
+
+  const allLabels = [...monthly.map(m => m.month), ...projection.map(p => p.month)];
+  const actualBars = [...monthly.map(m => m.cumulative_capability), ...projection.map(() => null)];
+
+  const fittedLine = model ? allLabels.map((_, i) => {
+    const ex = model.r * (i - model.t_mid);
+    if (ex > 50) return model.L;
+    if (ex < -50) return 0;
+    return Math.round(model.L / (1 + Math.exp(-ex)));
+  }) : [];
+
+  const asymptoteLine = model ? allLabels.map(() => model.L) : [];
+
+  // 95% and 99% horizontal lines
+  const line95 = model ? allLabels.map(() => Math.round(model.L * 0.95)) : [];
+  const line99 = model ? allLabels.map(() => Math.round(model.L * 0.99)) : [];
+
+  const annotations = makeMilestoneAnnotations(data, epochMonth, allLabels.length);
+
+  // Add horizontal bands for 95/99
+  if (model) {
+    annotations['h95'] = {
+      type: 'line', yMin: model.L * 0.95, yMax: model.L * 0.95,
+      borderColor: 'rgba(78, 205, 196, 0.5)', borderWidth: 1, borderDash: [4, 4],
+      label: { display: true, content: '95%', position: 'end', backgroundColor: 'transparent', color: '#4ecdc4', font: { size: 9 } },
+    };
+    annotations['h99'] = {
+      type: 'line', yMin: model.L * 0.99, yMax: model.L * 0.99,
+      borderColor: 'rgba(88, 166, 255, 0.5)', borderWidth: 1, borderDash: [4, 4],
+      label: { display: true, content: '99%', position: 'end', backgroundColor: 'transparent', color: '#58a6ff', font: { size: 9 } },
+    };
+  }
+
+  new Chart(document.getElementById('chart-capability'), {
+    type: 'bar',
+    data: {
+      labels: allLabels.map(l => l.substring(2)),
+      datasets: [
+        {
+          label: 'Cumulative Capability',
+          data: actualBars,
+          backgroundColor: 'rgba(78, 205, 196, 0.6)',
+          borderColor: '#4ecdc4',
+          borderWidth: 1,
+        },
+        {
+          label: 'Logistic Fit',
+          data: fittedLine,
+          type: 'line',
+          borderColor: '#58a6ff',
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.4,
+          fill: false,
+        },
+        {
+          label: `Asymptote (L=${model?.L || '?'})`,
+          data: asymptoteLine,
+          type: 'line',
+          borderColor: '#30363d',
+          borderWidth: 1,
+          borderDash: [5, 5],
+          pointRadius: 0,
+          fill: false,
+        },
+      ],
+    },
+    options: {
+      ...CHART_DEFAULTS,
+      plugins: {
+        ...CHART_DEFAULTS.plugins,
+        annotation: { annotations },
+      },
+    },
+  });
+}
+
+function renderSophisticationChart(data) {
+  const monthly = data.monthly;
+  const model = data.models?.sophistication;
+  const epochMonth = getEpochMonth(data);
+
+  const labels = monthly.map(m => m.month);
+  const actual = monthly.map(m => Math.round(m.sophistication * 100));
+
+  const extendedLabels = [...labels];
+  const trendline = [];
+  for (let i = 0; i < labels.length + 6; i++) {
+    if (i >= labels.length) {
+      const yr = epochMonth[0] + Math.floor((epochMonth[1] + i) / 12);
+      const mo = (epochMonth[1] + i) % 12;
+      extendedLabels.push(`${yr}-${String(mo + 1).padStart(2, '0')}`);
+    }
+    if (model) {
+      const val = Math.min(100, Math.max(0, (model.intercept + model.slope * i) * 100));
+      trendline.push(Math.round(val));
+    }
+  }
+
+  const actualPadded = [...actual, ...Array(extendedLabels.length - actual.length).fill(null)];
+
+  const annotations = makeMilestoneAnnotations(data, epochMonth, extendedLabels.length);
+
+  new Chart(document.getElementById('chart-sophistication'), {
+    type: 'line',
+    data: {
+      labels: extendedLabels.map(l => l.substring(2)),
+      datasets: [
+        {
+          label: 'Sophistication %',
+          data: actualPadded,
+          borderColor: '#b380ff',
+          backgroundColor: 'rgba(179, 128, 255, 0.2)',
+          borderWidth: 2,
+          pointRadius: 4,
+          fill: true,
+        },
+        {
+          label: 'Linear Trend',
+          data: trendline,
+          borderColor: '#ffd93d',
+          borderWidth: 2,
+          borderDash: [5, 5],
+          pointRadius: 0,
+          fill: false,
+        },
+        {
+          label: '100% Threshold',
+          data: extendedLabels.map(() => 100),
+          borderColor: '#30363d',
+          borderWidth: 1,
+          borderDash: [3, 3],
+          pointRadius: 0,
+          fill: false,
+        },
+      ],
+    },
+    options: {
+      ...CHART_DEFAULTS,
+      scales: {
+        ...CHART_DEFAULTS.scales,
+        y: { ...CHART_DEFAULTS.scales.y, min: 0, max: 110 },
+      },
+      plugins: {
+        ...CHART_DEFAULTS.plugins,
+        annotation: { annotations },
+      },
+    },
+  });
+}
+
+function renderConvergenceChart(data) {
+  const monthly = data.monthly;
+  const crModel = data.models?.commit_rate;
+  const capModel = data.models?.capability;
+  const epochMonth = getEpochMonth(data);
+
+  const allLabels = [];
+  for (let i = 0; i < monthly.length + 8; i++) {
+    const yr = epochMonth[0] + Math.floor((epochMonth[1] + i) / 12);
+    const mo = (epochMonth[1] + i) % 12;
+    allLabels.push(`${yr}-${String(mo + 1).padStart(2, '0')}`);
+  }
+
+  const peakCommits = Math.max(...monthly.map(m => m.commits));
+
+  const commitPct = allLabels.map((_, i) => {
+    if (i < monthly.length) {
+      return Math.round(monthly[i].commits / peakCommits * 100);
+    }
+    if (crModel) {
+      const ex = crModel.r * (i - crModel.t_mid);
+      if (Math.abs(ex) > 50) return 0;
+      const sig = 1 / (1 + Math.exp(-ex));
+      const rate = crModel.L * crModel.r * sig * (1 - sig);
+      return Math.max(0, Math.round(rate / peakCommits * 100));
+    }
+    return null;
+  });
+
+  const capPct = allLabels.map((_, i) => {
+    if (capModel) {
+      const ex = capModel.r * (i - capModel.t_mid);
+      let sig;
+      if (ex > 50) sig = 1;
+      else if (ex < -50) sig = 0;
+      else sig = 1 / (1 + Math.exp(-ex));
+      return Math.round(sig * 100);
+    }
+    return null;
+  });
+
+  const annotations = makeMilestoneAnnotations(data, epochMonth, allLabels.length);
+
+  // Add 95/99 horizontal lines
+  annotations['h95_conv'] = {
+    type: 'line', yMin: 95, yMax: 95,
+    borderColor: 'rgba(78, 205, 196, 0.3)', borderWidth: 1, borderDash: [4, 4],
+    label: { display: true, content: '95%', position: 'start', backgroundColor: 'transparent', color: '#4ecdc488', font: { size: 9 } },
+  };
+
+  new Chart(document.getElementById('chart-convergence'), {
+    type: 'line',
+    data: {
+      labels: allLabels.map(l => l.substring(2)),
+      datasets: [
+        {
+          label: 'Commit Rate (% of peak)',
+          data: commitPct,
+          borderColor: '#ff6b6b',
+          backgroundColor: 'rgba(255, 107, 107, 0.1)',
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.4,
+          fill: true,
+        },
+        {
+          label: 'Capability (% of self-sufficiency)',
+          data: capPct,
+          borderColor: '#4ecdc4',
+          backgroundColor: 'rgba(78, 205, 196, 0.1)',
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.4,
+          fill: true,
+        },
+      ],
+    },
+    options: {
+      ...CHART_DEFAULTS,
+      scales: {
+        ...CHART_DEFAULTS.scales,
+        y: { ...CHART_DEFAULTS.scales.y, min: 0, max: 100 },
+      },
+      plugins: {
+        ...CHART_DEFAULTS.plugins,
+        annotation: { annotations },
+      },
+    },
+  });
+}
+
+// ─── Drift Chart ────────────────────────────────────────────────────────
+function renderDriftChart(data) {
+  const history = data.convergence_history || [];
+  if (history.length < 1) return;
+
+  document.getElementById('drift-section').style.display = 'block';
+
+  const labels = history.map(h => {
+    const d = new Date(h.scan_time);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  });
+
+  const daysUntil = history.map(h => h.days_until_convergence);
+
+  // Component date lines: convert each target date to "days from today at scan time"
+  function dateToDaysFrom(targetDate, scanTime) {
+    if (!targetDate) return null;
+    const target = new Date(targetDate + 'T00:00:00');
+    const scan = new Date(scanTime);
+    scan.setHours(0,0,0,0);
+    return Math.round((target - scan) / 86400000);
+  }
+
+  const commitZero = history.map(h => dateToDaysFrom(h.component_dates?.commit_zero, h.scan_time));
+  const cap95 = history.map(h => dateToDaysFrom(h.component_dates?.capability_95, h.scan_time));
+  const cap99 = history.map(h => dateToDaysFrom(h.component_dates?.capability_99, h.scan_time));
+  const soph100 = history.map(h => dateToDaysFrom(h.component_dates?.sophistication_100, h.scan_time));
+
+  // Trend summary
+  if (history.length >= 2) {
+    const first = daysUntil[0];
+    const last = daysUntil[daysUntil.length - 1];
+    const scans = history.length - 1;
+    const drift = (first - last) / scans;
+    const summaryEl = document.getElementById('drift-summary');
+    if (drift > 0) {
+      summaryEl.innerHTML = `Convergence is moving <strong style="color:var(--teal);">${drift.toFixed(1)} days closer</strong> per scan (${scans} scan${scans > 1 ? 's' : ''})`;
+    } else if (drift < 0) {
+      summaryEl.innerHTML = `Convergence is drifting <strong style="color:var(--red);">${Math.abs(drift).toFixed(1)} days further</strong> per scan (${scans} scan${scans > 1 ? 's' : ''})`;
+    } else {
+      summaryEl.innerHTML = `Convergence date is <strong>stable</strong> across ${scans} scan${scans > 1 ? 's' : ''}`;
+    }
+  }
+
+  new Chart(document.getElementById('chart-drift'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Days Until Convergence',
+          data: daysUntil,
+          borderColor: '#ffd93d',
+          backgroundColor: 'rgba(255, 217, 61, 0.1)',
+          borderWidth: 3,
+          pointRadius: 5,
+          pointBackgroundColor: '#ffd93d',
+          fill: true,
+          tension: 0.3,
+        },
+        {
+          label: 'Commit Zero',
+          data: commitZero,
+          borderColor: '#ff6b6b',
+          borderWidth: 1.5,
+          borderDash: [6, 3],
+          pointRadius: 3,
+          fill: false,
+          tension: 0.3,
+        },
+        {
+          label: 'Capability 95%',
+          data: cap95,
+          borderColor: '#4ecdc4',
+          borderWidth: 1.5,
+          borderDash: [6, 3],
+          pointRadius: 3,
+          fill: false,
+          tension: 0.3,
+        },
+        {
+          label: 'Capability 99%',
+          data: cap99,
+          borderColor: '#58a6ff',
+          borderWidth: 1.5,
+          borderDash: [6, 3],
+          pointRadius: 3,
+          fill: false,
+          tension: 0.3,
+        },
+        {
+          label: 'Sophistication 100%',
+          data: soph100,
+          borderColor: '#b380ff',
+          borderWidth: 1.5,
+          borderDash: [6, 3],
+          pointRadius: 3,
+          fill: false,
+          tension: 0.3,
+        },
+      ],
+    },
+    options: {
+      ...CHART_DEFAULTS,
+      plugins: {
+        ...CHART_DEFAULTS.plugins,
+        tooltip: {
+          callbacks: {
+            afterBody(items) {
+              const idx = items[0]?.dataIndex;
+              if (idx === undefined) return '';
+              const h = history[idx];
+              const lines = [];
+              if (h.convergence_date) lines.push(`Target: ${h.convergence_date}`);
+              if (h.pct_of_asymptote) lines.push(`Capability: ${h.pct_of_asymptote}%`);
+              if (h.total_commits) lines.push(`Commits: ${h.total_commits.toLocaleString()}`);
+              return lines.join('\n');
+            },
+          },
+        },
+      },
+      scales: {
+        ...CHART_DEFAULTS.scales,
+        y: {
+          ...CHART_DEFAULTS.scales.y,
+          title: { display: true, text: 'Days remaining', color: '#8b949e', font: { size: 11 } },
+          reverse: false,
+        },
+      },
+    },
+  });
+}
+
+// ─── Init ───────────────────────────────────────────────────────────────
+async function init() {
+  DATA = await loadData();
+  const data = DATA;
+
+  // Countdown
+  const targetDate = data.models?.convergence_date || '2026-06-30';
+  startCountdown(targetDate);
+  const convDate = new Date(targetDate + 'T00:00:00');
+  const formattedDate = convDate.toLocaleDateString('en-US', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+  });
+  document.getElementById('convergence-date').textContent = formattedDate;
+
+  // Stats
+  const pct = data.current?.pct_of_asymptote || 0;
+  document.getElementById('stat-capability').textContent = `${pct.toFixed(1)}%`;
+  document.getElementById('stat-sophistication').textContent =
+    `${(data.current?.current_sophistication * 100 || 0).toFixed(0)}%`;
+  document.getElementById('stat-commits').textContent =
+    (data.current?.total_commits || 0).toLocaleString();
+  document.getElementById('stat-repos').textContent = data.repos_scanned || '--';
+  document.getElementById('stat-day').textContent = data.current?.days_since_inception || '--';
+
+  // Progress bar
+  const fill = document.getElementById('progress-fill');
+  setTimeout(() => {
+    fill.style.width = `${Math.min(100, pct)}%`;
+    fill.textContent = `${pct.toFixed(1)}%`;
+  }, 100);
+
+  // Charts
+  renderDriftChart(data);
+  renderCommitChart(data);
+  renderCapabilityChart(data);
+  renderSophisticationChart(data);
+  renderConvergenceChart(data);
+
+  // Footer
+  document.getElementById('footer').textContent =
+    `Last scan: ${data.generated} | ${data.repos_scanned} repos | ${data.total_commits.toLocaleString()} commits | Inception: ${data.inception_date}`;
+}
+
+init();
+</script>
+</body>
+</html>
