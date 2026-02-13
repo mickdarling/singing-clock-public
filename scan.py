@@ -47,6 +47,7 @@ SKIP_PATTERNS = [
     "node_modules",
     ".Trash",
     "singing-clock",
+    "singing-clock-public",
 ]
 
 OUTPUT_FILE = Path(__file__).parent / "data.json"
