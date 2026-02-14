@@ -900,16 +900,22 @@ def load_history():
     return []
 
 
-def record_history(models, current):
-    """Append a snapshot to history.json and return the full history."""
+def record_history(models, current, scoring_method="regex"):
+    """Append a snapshot to history.json and return the full history.
+
+    Deduplicates entries: skips append if the previous entry has the same
+    convergence_date and total_commits (i.e. nothing changed).
+    """
     history = load_history()
+    cap_model = models.get("capability", {})
     entry = {
         "scan_time": datetime.datetime.now().isoformat(timespec="seconds"),
+        "scoring_method": scoring_method,
         "convergence_date": models.get("convergence_date"),
         "component_dates": {
             "commit_zero": models.get("commit_rate", {}).get("zero_date"),
-            "capability_95": models.get("capability", {}).get("pct_95_date"),
-            "capability_99": models.get("capability", {}).get("pct_99_date"),
+            "capability_95": cap_model.get("pct_95_date"),
+            "capability_99": cap_model.get("pct_99_date"),
             "sophistication_100": models.get("sophistication", {}).get("pct_100_date"),
         },
         "days_until_convergence": (
@@ -917,8 +923,21 @@ def record_history(models, current):
             if models.get("convergence_date") else None
         ),
         "total_commits": current.get("total_commits", 0),
+        "total_capability": current.get("total_capability", 0),
         "pct_of_asymptote": current.get("pct_of_asymptote", 0),
+        "capability_L": cap_model.get("L"),
+        "capability_r2": cap_model.get("r_squared"),
+        "commit_rate_r2": models.get("commit_rate", {}).get("r_squared"),
     }
+
+    # Deduplicate: skip if same convergence_date + total_commits as last entry
+    if history:
+        prev = history[-1]
+        if (prev.get("convergence_date") == entry["convergence_date"]
+                and prev.get("total_commits") == entry["total_commits"]):
+            print(f"  History unchanged (same convergence date + commits), skipping")
+            return history
+
     history.append(entry)
     try:
         HISTORY_FILE.write_text(json.dumps(history, indent=2))
@@ -1361,7 +1380,8 @@ def main(args=None):
 
     # Record history
     print("\nRecording convergence history...")
-    convergence_history = record_history(models, current)
+    scoring_method = f"llm_{args['enrich_model']}" if args.get("enrich") else "regex"
+    convergence_history = record_history(models, current, scoring_method)
 
     # Build output
     output = {
