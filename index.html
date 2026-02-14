@@ -104,6 +104,82 @@
     letter-spacing: 0.1em;
   }
 
+  .help-hint {
+    cursor: help;
+    border-bottom: 1px dotted var(--text-dim);
+  }
+
+  .chart-subtitle {
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0;
+    margin-top: 0.25rem;
+  }
+
+  .help-modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .help-modal-overlay.active { display: flex; }
+
+  .help-modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2rem;
+    max-width: 600px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    color: var(--text);
+  }
+
+  .help-modal h2 {
+    font-size: 1.1rem;
+    color: var(--teal);
+    margin-bottom: 1.25rem;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  .help-modal dl {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.5rem 1rem;
+    font-size: 0.8rem;
+  }
+
+  .help-modal dt {
+    color: var(--text);
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .help-modal dd {
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+
+  .help-modal .close-btn {
+    float: right;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0.25rem;
+  }
+
+  .help-modal .close-btn:hover { color: var(--text); }
+
   .controls {
     max-width: 1400px;
     margin: 0 auto 1.5rem;
@@ -501,23 +577,23 @@
   <div class="meta-stats">
     <div class="stat">
       <div class="stat-value" style="color: var(--teal);" id="stat-capability">--</div>
-      <div class="stat-label">Self-Sufficiency</div>
+      <div class="stat-label"><span class="help-hint" title="Logistic-model % of maximum capability reached">Self-Sufficiency</span></div>
     </div>
     <div class="stat">
       <div class="stat-value" style="color: var(--yellow);" id="stat-sophistication">--</div>
-      <div class="stat-label">Sophistication</div>
+      <div class="stat-label"><span class="help-hint" title="Ratio of high-weight categories to total activity">Sophistication</span></div>
     </div>
     <div class="stat">
       <div class="stat-value" style="color: var(--red);" id="stat-commits">--</div>
-      <div class="stat-label">Total Commits</div>
+      <div class="stat-label"><span class="help-hint" title="Total scored commits across all scanned repos">Total Commits</span></div>
     </div>
     <div class="stat">
       <div class="stat-value" style="color: var(--purple);" id="stat-repos">--</div>
-      <div class="stat-label">Repos Scanned</div>
+      <div class="stat-label"><span class="help-hint" title="Number of git repositories included in the scan">Repos Scanned</span></div>
     </div>
     <div class="stat">
       <div class="stat-value" style="color: var(--blue);" id="stat-day">--</div>
-      <div class="stat-label">Day of Project</div>
+      <div class="stat-label"><span class="help-hint" title="Days elapsed since the first scored commit">Day of Project</span></div>
     </div>
   </div>
 </div>
@@ -527,10 +603,12 @@
   <button class="btn-primary btn" id="btn-scan" onclick="triggerScan()">Rescan Repos</button>
   <button class="btn" onclick="location.reload()">Refresh</button>
   <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark theme"></button>
+  <button class="btn" onclick="openGlossary()" title="Terminology guide">? Help</button>
 </div>
 
 <div class="progress-bar-container">
   <h2>Capability Progress</h2>
+  <div class="chart-subtitle">Logistic model fit: current % of predicted maximum capability</div>
   <div class="progress-bar">
     <div class="progress-fill" id="progress-fill" style="width: 0%;">0%</div>
   </div>
@@ -545,6 +623,7 @@
 <div class="drift-container" id="drift-section" style="display:none;">
   <div class="chart-card" style="max-width:1400px; margin:0 auto 1.5rem;">
     <h2>Convergence Date Drift</h2>
+    <div class="chart-subtitle">How the predicted graduation date shifts over successive scans</div>
     <div class="chart-container" style="height: 300px;"><canvas id="chart-drift"></canvas></div>
     <div id="drift-summary" style="margin-top:1rem; font-size:0.85rem; color:var(--text-dim); text-align:center;"></div>
   </div>
@@ -553,24 +632,63 @@
 <div class="charts">
   <div class="chart-card">
     <h2>Commit Rate (Actual + Projected)</h2>
+    <div class="chart-subtitle">Monthly commit volume with logistic projection overlay</div>
     <div class="chart-container"><canvas id="chart-commits"></canvas></div>
   </div>
   <div class="chart-card">
     <h2>Cumulative Capability</h2>
+    <div class="chart-subtitle">Running total of weighted capability score with logistic fit</div>
     <div class="chart-container"><canvas id="chart-capability"></canvas></div>
   </div>
   <div class="chart-card">
     <h2>Sophistication Trend</h2>
+    <div class="chart-subtitle">High-weight category ratio per month (agents, self-modify, meta)</div>
     <div class="chart-container"><canvas id="chart-sophistication"></canvas></div>
   </div>
   <div class="chart-card">
     <h2>Convergence: Effort vs. Capability</h2>
+    <div class="chart-subtitle">Commit rate derivative vs. capability derivative — crossing = graduation</div>
     <div class="chart-container"><canvas id="chart-convergence"></canvas></div>
   </div>
 </div>
 
 <div class="footer" id="footer">
   Loading data...
+</div>
+
+<div class="help-modal-overlay" id="glossary-overlay">
+  <div class="help-modal">
+    <button class="close-btn" onclick="closeGlossary()">&times;</button>
+    <h2>Glossary &amp; Terminology</h2>
+    <dl>
+      <dt>Convergence</dt>
+      <dd>The predicted date when a project becomes self-sufficient — commit rate nears zero while capability plateaus near 100%.</dd>
+
+      <dt>Self-Sufficiency</dt>
+      <dd>Percentage of maximum predicted capability reached, derived from a logistic growth model fitted to cumulative scores.</dd>
+
+      <dt>Sophistication</dt>
+      <dd>Ratio of high-weight category scores (agents, self-modify, meta) to total score. Higher values mean more advanced work.</dd>
+
+      <dt>Capability Score</dt>
+      <dd>Weighted sum across 9 categories (foundation, testing, agents, etc.). Each commit is scored by regex or LLM classification.</dd>
+
+      <dt>Logistic Model</dt>
+      <dd>S-curve (L / (1 + e^(-r(t-t_mid)))) fitted via grid search. Parameters: L (ceiling), r (growth rate), t_mid (inflection).</dd>
+
+      <dt>Enrichment</dt>
+      <dd>Optional LLM-based classification that replaces regex scoring with semantic analysis. Requires --enrich flag and API key.</dd>
+
+      <dt>Diffstat Weighting</dt>
+      <dd>Adjusts scores based on commit size — large source changes get a boost, config-only changes get reduced weight.</dd>
+
+      <dt>Categories</dt>
+      <dd>foundation (1), testing (1), integration (2), safety (2), elements (2), ecosystem (2), agents (3), meta (4), self_modify (5). Weight in parentheses.</dd>
+
+      <dt>Graduation</dt>
+      <dd>When the project reaches the convergence point — capability near ceiling and commit rate approaching zero.</dd>
+    </dl>
+  </div>
 </div>
 
 <script>
@@ -623,6 +741,20 @@ function toggleTheme() {
 
 // Set icon on load
 updateThemeIcon();
+
+// ─── Glossary Modal ─────────────────────────────────────────────────────
+function openGlossary() {
+  document.getElementById('glossary-overlay').classList.add('active');
+}
+function closeGlossary() {
+  document.getElementById('glossary-overlay').classList.remove('active');
+}
+document.getElementById('glossary-overlay').addEventListener('click', function(e) {
+  if (e.target === this) closeGlossary();
+});
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeGlossary();
+});
 
 // ─── Milestone Helpers ──────────────────────────────────────────────────
 // Convert a date string (YYYY-MM-DD) to a month-index relative to the timeline
