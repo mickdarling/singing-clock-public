@@ -18,6 +18,21 @@
     --yellow: #ffd93d;
     --purple: #b380ff;
     --blue: #58a6ff;
+    --grid: #21262d;
+  }
+
+  [data-theme="light"] {
+    --bg: #ffffff;
+    --surface: #f6f8fa;
+    --border: #d0d7de;
+    --text: #1f2328;
+    --text-dim: #656d76;
+    --teal: #1a7f76;
+    --red: #cf222e;
+    --yellow: #9a6700;
+    --purple: #8250df;
+    --blue: #0969da;
+    --grid: #d8dee4;
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -123,6 +138,24 @@
 
   .btn-primary:hover { background: #3dbdb5; }
   .btn-primary:disabled { background: var(--border); border-color: var(--border); color: var(--text-dim); }
+
+  .theme-toggle {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.4rem 0.6rem;
+    cursor: pointer;
+    font-size: 1rem;
+    line-height: 1;
+    transition: all 0.2s;
+    min-height: 44px;
+    min-width: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .theme-toggle:hover { border-color: var(--teal); }
 
   .scan-status {
     font-size: 0.75rem;
@@ -449,6 +482,15 @@
 </style>
 </head>
 <body>
+<script>
+// Apply theme immediately to prevent flash of wrong theme
+(function() {
+  const saved = localStorage.getItem('singing-clock-theme');
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const theme = saved || (prefersDark ? 'dark' : 'light');
+  if (theme === 'light') document.documentElement.setAttribute('data-theme', 'light');
+})();
+</script>
 
 <div class="hero">
   <h1>Singing Clock</h1>
@@ -484,6 +526,7 @@
   <span class="scan-status" id="scan-status"></span>
   <button class="btn-primary btn" id="btn-scan" onclick="triggerScan()">Rescan Repos</button>
   <button class="btn" onclick="location.reload()">Refresh</button>
+  <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark theme"></button>
 </div>
 
 <div class="progress-bar-container">
@@ -534,17 +577,52 @@
 // ─── Globals ────────────────────────────────────────────────────────────
 let DATA = null;
 
-const CHART_DEFAULTS = {
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: {
-    legend: { labels: { color: '#8b949e', font: { family: "'SF Mono', monospace", size: 11 } } },
-  },
-  scales: {
-    x: { ticks: { color: '#8b949e', font: { size: 10 } }, grid: { color: '#21262d' } },
-    y: { ticks: { color: '#8b949e', font: { size: 10 } }, grid: { color: '#21262d' } },
-  },
-};
+function cssVar(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+function getChartDefaults() {
+  const dim = cssVar('--text-dim');
+  const grid = cssVar('--grid');
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { labels: { color: dim, font: { family: "'SF Mono', monospace", size: 11 } } },
+    },
+    scales: {
+      x: { ticks: { color: dim, font: { size: 10 } }, grid: { color: grid } },
+      y: { ticks: { color: dim, font: { size: 10 } }, grid: { color: grid } },
+    },
+  };
+}
+
+const CHART_DEFAULTS = getChartDefaults();
+
+// ─── Theme Toggle ───────────────────────────────────────────────────────
+function getTheme() {
+  return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+}
+
+function updateThemeIcon() {
+  const btn = document.getElementById('theme-toggle');
+  if (btn) btn.textContent = getTheme() === 'dark' ? '\u2600\uFE0F' : '\uD83C\uDF19';
+}
+
+function toggleTheme() {
+  const next = getTheme() === 'dark' ? 'light' : 'dark';
+  if (next === 'light') {
+    document.documentElement.setAttribute('data-theme', 'light');
+  } else {
+    document.documentElement.removeAttribute('data-theme');
+  }
+  localStorage.setItem('singing-clock-theme', next);
+  // Reload to re-render charts with new theme colors
+  location.reload();
+}
+
+// Set icon on load
+updateThemeIcon();
 
 // ─── Milestone Helpers ──────────────────────────────────────────────────
 // Convert a date string (YYYY-MM-DD) to a month-index relative to the timeline
@@ -582,7 +660,7 @@ function makeMilestoneAnnotations(data, epochMonth, labelCount) {
         display: true,
         content: m.label,
         position: 'start',
-        backgroundColor: 'rgba(13,17,23,0.85)',
+        backgroundColor: getTheme() === 'dark' ? 'rgba(13,17,23,0.85)' : 'rgba(255,255,255,0.85)',
         color: m.color,
         font: { family: "'SF Mono', monospace", size: 10, weight: 'bold' },
         padding: 4,
@@ -605,7 +683,7 @@ function makeMilestoneAnnotations(data, epochMonth, labelCount) {
         display: true,
         content: '95-99% zone',
         position: { x: 'center', y: 'start' },
-        backgroundColor: 'rgba(13,17,23,0.85)',
+        backgroundColor: getTheme() === 'dark' ? 'rgba(13,17,23,0.85)' : 'rgba(255,255,255,0.85)',
         color: '#4ecdc4',
         font: { family: "'SF Mono', monospace", size: 9 },
         padding: 3,
@@ -1019,7 +1097,7 @@ function renderCapabilityChart(data) {
           label: `Asymptote (L=${model?.L || '?'})`,
           data: asymptoteLine,
           type: 'line',
-          borderColor: '#30363d',
+          borderColor: cssVar('--border'),
           borderWidth: 1,
           borderDash: [5, 5],
           pointRadius: 0,
@@ -1089,7 +1167,7 @@ function renderSophisticationChart(data) {
         {
           label: '100% Threshold',
           data: extendedLabels.map(() => 100),
-          borderColor: '#30363d',
+          borderColor: cssVar('--border'),
           borderWidth: 1,
           borderDash: [3, 3],
           pointRadius: 0,
@@ -1327,7 +1405,7 @@ function renderDriftChart(data) {
         ...CHART_DEFAULTS.scales,
         y: {
           ...CHART_DEFAULTS.scales.y,
-          title: { display: true, text: 'Days remaining', color: '#8b949e', font: { size: 11 } },
+          title: { display: true, text: 'Days remaining', color: cssVar('--text-dim'), font: { size: 11 } },
           reverse: false,
         },
       },
