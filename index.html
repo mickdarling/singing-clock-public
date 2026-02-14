@@ -18,9 +18,56 @@
     --yellow: #ffd93d;
     --purple: #b380ff;
     --blue: #58a6ff;
+    --grid: #21262d;
+  }
+
+  [data-theme="light"] {
+    --bg: #ffffff;
+    --surface: #f6f8fa;
+    --border: #d0d7de;
+    --text: #1f2328;
+    --text-dim: #656d76;
+    --teal: #1a7f76;
+    --red: #cf222e;
+    --yellow: #9a6700;
+    --purple: #8250df;
+    --blue: #0969da;
+    --grid: #d8dee4;
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  .skip-link {
+    position: absolute;
+    top: -100%;
+    left: 1rem;
+    background: var(--teal);
+    color: #000;
+    padding: 0.5rem 1rem;
+    border-radius: 0 0 6px 6px;
+    z-index: 2000;
+    font-size: 0.85rem;
+    text-decoration: none;
+  }
+
+  .skip-link:focus { top: 0; }
+
+  :focus-visible {
+    outline: 2px solid var(--teal);
+    outline-offset: 2px;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
 
   body {
     background: var(--bg);
@@ -89,6 +136,82 @@
     letter-spacing: 0.1em;
   }
 
+  .help-hint {
+    cursor: help;
+    border-bottom: 1px dotted var(--text-dim);
+  }
+
+  .chart-subtitle {
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0;
+    margin-top: 0.25rem;
+  }
+
+  .help-modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .help-modal-overlay.active { display: flex; }
+
+  .help-modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2rem;
+    max-width: 600px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    color: var(--text);
+  }
+
+  .help-modal h2 {
+    font-size: 1.1rem;
+    color: var(--teal);
+    margin-bottom: 1.25rem;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  .help-modal dl {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.5rem 1rem;
+    font-size: 0.8rem;
+  }
+
+  .help-modal dt {
+    color: var(--text);
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .help-modal dd {
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+
+  .help-modal .close-btn {
+    float: right;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0.25rem;
+  }
+
+  .help-modal .close-btn:hover { color: var(--text); }
+
   .controls {
     max-width: 1400px;
     margin: 0 auto 1.5rem;
@@ -123,6 +246,160 @@
 
   .btn-primary:hover { background: #3dbdb5; }
   .btn-primary:disabled { background: var(--border); border-color: var(--border); color: var(--text-dim); }
+
+  .theme-toggle {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.4rem 0.6rem;
+    cursor: pointer;
+    font-size: 1rem;
+    line-height: 1;
+    transition: all 0.2s;
+    min-height: 44px;
+    min-width: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .theme-toggle:hover { border-color: var(--teal); }
+
+  .export-dropdown {
+    position: relative;
+    display: inline-block;
+  }
+
+  .export-menu {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: 100%;
+    margin-top: 0.25rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    min-width: 160px;
+    z-index: 100;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  }
+
+  .export-menu.active { display: block; }
+
+  .export-menu button {
+    display: block;
+    width: 100%;
+    padding: 0.6rem 1rem;
+    background: none;
+    border: none;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 0.8rem;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .export-menu button:hover {
+    background: var(--bg);
+    color: var(--teal);
+  }
+
+  .export-menu button + button {
+    border-top: 1px solid var(--border);
+  }
+
+  .scoring-toggles {
+    display: none;
+    max-width: 1400px;
+    margin: 0 auto 1rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.75rem 1.25rem;
+    font-size: 0.8rem;
+    align-items: center;
+    gap: 1.25rem;
+    flex-wrap: wrap;
+  }
+
+  .scoring-toggles.active { display: flex; }
+
+  .scoring-toggles .toggle-label {
+    color: var(--text-dim);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+  }
+
+  .scoring-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .scoring-toggle input[type="checkbox"] {
+    accent-color: var(--teal);
+    width: 16px;
+    height: 16px;
+  }
+
+  .scoring-toggle .swatch {
+    display: inline-block;
+    width: 12px;
+    height: 3px;
+    border-radius: 2px;
+    vertical-align: middle;
+  }
+
+  .scoring-toggle .swatch-enriched { background: var(--teal); }
+  .scoring-toggle .swatch-regex { background: var(--yellow); border-style: dashed; }
+
+  .issue-impact-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+  }
+
+  .issue-impact-table th {
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+    color: var(--text-dim);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+
+  .issue-impact-table td {
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    vertical-align: top;
+  }
+
+  .issue-impact-table tr:last-child td { border-bottom: none; }
+
+  .issue-impact-table .rank { color: var(--text-dim); font-weight: 700; width: 2rem; text-align: center; }
+  .issue-impact-table .impact { font-weight: 700; white-space: nowrap; }
+  .issue-impact-table .impact.positive { color: var(--teal); }
+  .issue-impact-table .impact.neutral { color: var(--text-dim); }
+  .issue-impact-table .score { color: var(--yellow); white-space: nowrap; }
+  .issue-impact-table .issue-title { max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .issue-impact-table .repo-name { color: var(--text-dim); font-size: 0.7rem; }
+  .issue-impact-table .cats { font-size: 0.7rem; color: var(--text-dim); }
+  .issue-impact-table .cat-tag {
+    display: inline-block;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 0.1rem 0.35rem;
+    margin: 0.1rem;
+    font-size: 0.65rem;
+  }
 
   .scan-status {
     font-size: 0.75rem;
@@ -449,46 +726,82 @@
 </style>
 </head>
 <body>
+<script>
+// Apply theme immediately to prevent flash of wrong theme
+(function() {
+  const saved = localStorage.getItem('singing-clock-theme');
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const theme = saved || (prefersDark ? 'dark' : 'light');
+  if (theme === 'light') document.documentElement.setAttribute('data-theme', 'light');
+})();
+</script>
 
-<div class="hero">
+<a href="#main-content" class="skip-link">Skip to main content</a>
+
+<header class="hero">
   <h1>Singing Clock</h1>
-  <div class="countdown" id="countdown-days">---</div>
+  <div class="countdown" id="countdown-days" aria-live="polite">---</div>
   <div class="countdown-label">days until graduation</div>
-  <div class="countdown-detail" id="countdown-full">--d --h --m --s</div>
+  <div class="countdown-detail" id="countdown-full" aria-label="Detailed countdown timer">--d --h --m --s</div>
   <div id="convergence-date" style="color: var(--text-dim); font-size: 0.9rem;"></div>
-  <div class="meta-stats">
+  <div class="meta-stats" role="group" aria-label="Key metrics">
     <div class="stat">
       <div class="stat-value" style="color: var(--teal);" id="stat-capability">--</div>
-      <div class="stat-label">Self-Sufficiency</div>
+      <div class="stat-label"><span class="help-hint" title="Logistic-model % of maximum capability reached">Self-Sufficiency</span></div>
     </div>
     <div class="stat">
       <div class="stat-value" style="color: var(--yellow);" id="stat-sophistication">--</div>
-      <div class="stat-label">Sophistication</div>
+      <div class="stat-label"><span class="help-hint" title="Ratio of high-weight categories to total activity">Sophistication</span></div>
     </div>
     <div class="stat">
       <div class="stat-value" style="color: var(--red);" id="stat-commits">--</div>
-      <div class="stat-label">Total Commits</div>
+      <div class="stat-label"><span class="help-hint" title="Total scored commits across all scanned repos">Total Commits</span></div>
     </div>
     <div class="stat">
       <div class="stat-value" style="color: var(--purple);" id="stat-repos">--</div>
-      <div class="stat-label">Repos Scanned</div>
+      <div class="stat-label"><span class="help-hint" title="Number of git repositories included in the scan">Repos Scanned</span></div>
     </div>
     <div class="stat">
       <div class="stat-value" style="color: var(--blue);" id="stat-day">--</div>
-      <div class="stat-label">Day of Project</div>
+      <div class="stat-label"><span class="help-hint" title="Days elapsed since the first scored commit">Day of Project</span></div>
     </div>
   </div>
-</div>
+</header>
 
-<div class="controls">
-  <span class="scan-status" id="scan-status"></span>
+<nav class="controls" aria-label="Dashboard controls">
+  <span class="scan-status" id="scan-status" aria-live="polite"></span>
   <button class="btn-primary btn" id="btn-scan" onclick="triggerScan()">Rescan Repos</button>
   <button class="btn" onclick="location.reload()">Refresh</button>
+  <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark theme" aria-label="Toggle light/dark theme"></button>
+  <button class="btn" onclick="openGlossary()" title="Terminology guide">? Help</button>
+  <div class="export-dropdown">
+    <button class="btn" onclick="toggleExportMenu()" id="btn-export" disabled>Export</button>
+    <div class="export-menu" id="export-menu">
+      <button onclick="exportCSV()">CSV (monthly data)</button>
+      <button onclick="exportJSON()">JSON (full scan)</button>
+    </div>
+  </div>
+</nav>
+
+<main id="main-content">
+
+<div class="scoring-toggles" id="scoring-toggles" aria-label="Scoring overlay controls">
+  <span class="toggle-label">Scoring overlay:</span>
+  <label class="scoring-toggle">
+    <input type="checkbox" id="toggle-enriched" checked onchange="updateScoringOverlays()">
+    <span class="swatch swatch-enriched"></span> LLM Enriched
+  </label>
+  <label class="scoring-toggle">
+    <input type="checkbox" id="toggle-regex" checked onchange="updateScoringOverlays()">
+    <span class="swatch swatch-regex"></span> Regex Only
+  </label>
+  <span style="color: var(--text-dim); font-size: 0.7rem; margin-left: auto;">Scoring mode: <strong id="scoring-mode-label">--</strong></span>
 </div>
 
-<div class="progress-bar-container">
+<section class="progress-bar-container" aria-label="Capability progress">
   <h2>Capability Progress</h2>
-  <div class="progress-bar">
+  <div class="chart-subtitle">Logistic model fit: current % of predicted maximum capability</div>
+  <div class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" aria-label="Capability progress" id="progress-bar">
     <div class="progress-fill" id="progress-fill" style="width: 0%;">0%</div>
   </div>
   <div class="progress-markers">
@@ -497,54 +810,212 @@
     <span>95% - Self-Sufficient</span>
     <span>100%</span>
   </div>
-</div>
+</section>
 
-<div class="drift-container" id="drift-section" style="display:none;">
+<section class="drift-container" id="drift-section" style="display:none;" aria-label="Convergence date drift">
   <div class="chart-card" style="max-width:1400px; margin:0 auto 1.5rem;">
     <h2>Convergence Date Drift</h2>
-    <div class="chart-container" style="height: 300px;"><canvas id="chart-drift"></canvas></div>
+    <div class="chart-subtitle">How the predicted graduation date shifts over successive scans</div>
+    <div class="chart-container" style="height: 300px;"><canvas id="chart-drift" role="img" aria-label="Convergence date drift chart showing prediction changes over time"></canvas></div>
     <div id="drift-summary" style="margin-top:1rem; font-size:0.85rem; color:var(--text-dim); text-align:center;"></div>
   </div>
-</div>
+</section>
 
-<div class="charts">
+<section class="charts" aria-label="Data visualizations">
   <div class="chart-card">
     <h2>Commit Rate (Actual + Projected)</h2>
-    <div class="chart-container"><canvas id="chart-commits"></canvas></div>
+    <div class="chart-subtitle">Monthly commit volume with logistic projection overlay</div>
+    <div class="chart-container"><canvas id="chart-commits" role="img" aria-label="Commit rate chart showing actual and projected monthly commits"></canvas></div>
   </div>
   <div class="chart-card">
     <h2>Cumulative Capability</h2>
-    <div class="chart-container"><canvas id="chart-capability"></canvas></div>
+    <div class="chart-subtitle">Running total of weighted capability score with logistic fit</div>
+    <div class="chart-container"><canvas id="chart-capability" role="img" aria-label="Cumulative capability score chart with logistic model fit"></canvas></div>
   </div>
   <div class="chart-card">
     <h2>Sophistication Trend</h2>
-    <div class="chart-container"><canvas id="chart-sophistication"></canvas></div>
+    <div class="chart-subtitle">High-weight category ratio per month (agents, self-modify, meta)</div>
+    <div class="chart-container"><canvas id="chart-sophistication" role="img" aria-label="Sophistication trend chart showing monthly high-weight category ratios"></canvas></div>
   </div>
   <div class="chart-card">
     <h2>Convergence: Effort vs. Capability</h2>
-    <div class="chart-container"><canvas id="chart-convergence"></canvas></div>
+    <div class="chart-subtitle">Commit rate derivative vs. capability derivative — crossing = graduation</div>
+    <div class="chart-container"><canvas id="chart-convergence" role="img" aria-label="Convergence chart comparing effort and capability derivatives"></canvas></div>
   </div>
-</div>
+</section>
 
-<div class="footer" id="footer">
+<section class="issue-impact-section" id="issue-impact-section" style="display:none;" aria-label="Issue convergence impact">
+  <div class="chart-card" style="max-width:1400px; margin:0 auto 1.5rem;">
+    <h2>Open Issues by Convergence Impact</h2>
+    <div class="chart-subtitle">Ranked by estimated days shifted toward graduation if completed</div>
+    <div id="issue-impact-table-wrapper" style="margin-top:1rem; overflow-x:auto;"></div>
+  </div>
+</section>
+
+</main>
+
+<footer class="footer" id="footer">
   Loading data...
+</footer>
+
+<div class="help-modal-overlay" id="glossary-overlay" role="dialog" aria-modal="true" aria-label="Glossary and terminology guide">
+  <div class="help-modal">
+    <button class="close-btn" onclick="closeGlossary()" aria-label="Close glossary">&times;</button>
+    <h2>Glossary &amp; Terminology</h2>
+    <dl>
+      <dt>Convergence</dt>
+      <dd>The predicted date when a project becomes self-sufficient — commit rate nears zero while capability plateaus near 100%.</dd>
+
+      <dt>Self-Sufficiency</dt>
+      <dd>Percentage of maximum predicted capability reached, derived from a logistic growth model fitted to cumulative scores.</dd>
+
+      <dt>Sophistication</dt>
+      <dd>Ratio of high-weight category scores (agents, self-modify, meta) to total score. Higher values mean more advanced work.</dd>
+
+      <dt>Capability Score</dt>
+      <dd>Weighted sum across 9 categories (foundation, testing, agents, etc.). Each commit is scored by regex or LLM classification.</dd>
+
+      <dt>Logistic Model</dt>
+      <dd>S-curve (L / (1 + e^(-r(t-t_mid)))) fitted via grid search. Parameters: L (ceiling), r (growth rate), t_mid (inflection).</dd>
+
+      <dt>Enrichment</dt>
+      <dd>Optional LLM-based classification that replaces regex scoring with semantic analysis. Requires --enrich flag and API key.</dd>
+
+      <dt>Diffstat Weighting</dt>
+      <dd>Adjusts scores based on commit size — large source changes get a boost, config-only changes get reduced weight.</dd>
+
+      <dt>Categories</dt>
+      <dd>foundation (1), testing (1), integration (2), safety (2), elements (2), ecosystem (2), agents (3), meta (4), self_modify (5). Weight in parentheses.</dd>
+
+      <dt>Graduation</dt>
+      <dd>When the project reaches the convergence point — capability near ceiling and commit rate approaching zero.</dd>
+    </dl>
+  </div>
 </div>
 
 <script>
 // ─── Globals ────────────────────────────────────────────────────────────
 let DATA = null;
 
-const CHART_DEFAULTS = {
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: {
-    legend: { labels: { color: '#8b949e', font: { family: "'SF Mono', monospace", size: 11 } } },
-  },
-  scales: {
-    x: { ticks: { color: '#8b949e', font: { size: 10 } }, grid: { color: '#21262d' } },
-    y: { ticks: { color: '#8b949e', font: { size: 10 } }, grid: { color: '#21262d' } },
-  },
-};
+function cssVar(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+function getChartDefaults() {
+  const dim = cssVar('--text-dim');
+  const grid = cssVar('--grid');
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { labels: { color: dim, font: { family: "'SF Mono', monospace", size: 11 } } },
+    },
+    scales: {
+      x: { ticks: { color: dim, font: { size: 10 } }, grid: { color: grid } },
+      y: { ticks: { color: dim, font: { size: 10 } }, grid: { color: grid } },
+    },
+  };
+}
+
+const CHART_DEFAULTS = getChartDefaults();
+
+// ─── Theme Toggle ───────────────────────────────────────────────────────
+function getTheme() {
+  return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+}
+
+function updateThemeIcon() {
+  const btn = document.getElementById('theme-toggle');
+  if (btn) btn.textContent = getTheme() === 'dark' ? '\u2600\uFE0F' : '\uD83C\uDF19';
+}
+
+function toggleTheme() {
+  const next = getTheme() === 'dark' ? 'light' : 'dark';
+  if (next === 'light') {
+    document.documentElement.setAttribute('data-theme', 'light');
+  } else {
+    document.documentElement.removeAttribute('data-theme');
+  }
+  localStorage.setItem('singing-clock-theme', next);
+  // Reload to re-render charts with new theme colors
+  location.reload();
+}
+
+// Set icon on load
+updateThemeIcon();
+
+// ─── Glossary Modal ─────────────────────────────────────────────────────
+function openGlossary() {
+  document.getElementById('glossary-overlay').classList.add('active');
+}
+function closeGlossary() {
+  document.getElementById('glossary-overlay').classList.remove('active');
+}
+document.getElementById('glossary-overlay').addEventListener('click', function(e) {
+  if (e.target === this) closeGlossary();
+});
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeGlossary();
+});
+
+// ─── Data Export ────────────────────────────────────────────────────────
+function toggleExportMenu() {
+  document.getElementById('export-menu').classList.toggle('active');
+}
+
+// Close export menu when clicking outside
+document.addEventListener('click', function(e) {
+  const dropdown = document.getElementById('export-menu');
+  if (!dropdown) return;
+  if (!e.target.closest('.export-dropdown')) {
+    dropdown.classList.remove('active');
+  }
+});
+
+function downloadFile(content, filename, mime) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportCSV() {
+  if (!DATA) return;
+  const months = DATA.months || [];
+  const commits = DATA.commit_counts || [];
+  const scores = DATA.cumulative_scores || [];
+  const soph = DATA.sophistication_ratios || [];
+
+  let csv = 'Month,Commits,Cumulative Score,Sophistication Ratio\n';
+  for (let i = 0; i < months.length; i++) {
+    csv += `${months[i]},${commits[i] || 0},${scores[i] || 0},${(soph[i] || 0).toFixed(4)}\n`;
+  }
+
+  // Add metadata as comments
+  const meta = [
+    `# Singing Clock Export`,
+    `# Generated: ${DATA.generated || 'unknown'}`,
+    `# Repos: ${(DATA.repos || []).join('; ')}`,
+    `# Total Commits: ${DATA.total_commits || 0}`,
+    `# Convergence Date: ${DATA.models?.convergence_date || 'unknown'}`,
+    ''
+  ].join('\n');
+
+  const ts = new Date().toISOString().slice(0, 10);
+  downloadFile(meta + csv, `singing-clock-${ts}.csv`, 'text/csv');
+  document.getElementById('export-menu').classList.remove('active');
+}
+
+function exportJSON() {
+  if (!DATA) return;
+  const ts = new Date().toISOString().slice(0, 10);
+  downloadFile(JSON.stringify(DATA, null, 2), `singing-clock-${ts}.json`, 'application/json');
+  document.getElementById('export-menu').classList.remove('active');
+}
+
 
 // ─── Milestone Helpers ──────────────────────────────────────────────────
 // Convert a date string (YYYY-MM-DD) to a month-index relative to the timeline
@@ -582,7 +1053,7 @@ function makeMilestoneAnnotations(data, epochMonth, labelCount) {
         display: true,
         content: m.label,
         position: 'start',
-        backgroundColor: 'rgba(13,17,23,0.85)',
+        backgroundColor: getTheme() === 'dark' ? 'rgba(13,17,23,0.85)' : 'rgba(255,255,255,0.85)',
         color: m.color,
         font: { family: "'SF Mono', monospace", size: 10, weight: 'bold' },
         padding: 4,
@@ -605,7 +1076,7 @@ function makeMilestoneAnnotations(data, epochMonth, labelCount) {
         display: true,
         content: '95-99% zone',
         position: { x: 'center', y: 'start' },
-        backgroundColor: 'rgba(13,17,23,0.85)',
+        backgroundColor: getTheme() === 'dark' ? 'rgba(13,17,23,0.85)' : 'rgba(255,255,255,0.85)',
         color: '#4ecdc4',
         font: { family: "'SF Mono', monospace", size: 9 },
         padding: 3,
@@ -921,7 +1392,7 @@ function renderCommitChart(data) {
     return Math.round(model.L * model.r * sig * (1 - sig));
   }) : [];
 
-  new Chart(document.getElementById('chart-commits'), {
+  chartInstances.commits = new Chart(document.getElementById('chart-commits'), {
     type: 'bar',
     data: {
       labels: allLabels.map(l => l.substring(2)),
@@ -993,40 +1464,57 @@ function renderCapabilityChart(data) {
     };
   }
 
-  new Chart(document.getElementById('chart-capability'), {
-    type: 'bar',
-    data: {
-      labels: allLabels.map(l => l.substring(2)),
-      datasets: [
-        {
-          label: 'Cumulative Capability',
-          data: actualBars,
-          backgroundColor: 'rgba(78, 205, 196, 0.6)',
-          borderColor: '#4ecdc4',
-          borderWidth: 1,
-        },
-        {
-          label: 'Logistic Fit',
-          data: fittedLine,
-          type: 'line',
-          borderColor: '#58a6ff',
-          borderWidth: 2,
-          pointRadius: 0,
-          tension: 0.4,
-          fill: false,
-        },
-        {
-          label: `Asymptote (L=${model?.L || '?'})`,
-          data: asymptoteLine,
-          type: 'line',
-          borderColor: '#30363d',
-          borderWidth: 1,
-          borderDash: [5, 5],
-          pointRadius: 0,
-          fill: false,
-        },
-      ],
+  const capDatasets = [
+    {
+      label: 'Cumulative Capability',
+      data: actualBars,
+      backgroundColor: 'rgba(78, 205, 196, 0.6)',
+      borderColor: '#4ecdc4',
+      borderWidth: 1,
+      _scoringType: 'enriched',
     },
+    {
+      label: 'Logistic Fit',
+      data: fittedLine,
+      type: 'line',
+      borderColor: '#58a6ff',
+      borderWidth: 2,
+      pointRadius: 0,
+      tension: 0.4,
+      fill: false,
+    },
+    {
+      label: `Asymptote (L=${model?.L || '?'})`,
+      data: asymptoteLine,
+      type: 'line',
+      borderColor: cssVar('--border'),
+      borderWidth: 1,
+      borderDash: [5, 5],
+      pointRadius: 0,
+      fill: false,
+    },
+  ];
+
+  // Add regex overlay if dual-scoring data is available
+  if (data.monthly_regex) {
+    const rx = data.monthly_regex;
+    capDatasets.push({
+      label: 'Regex Cumulative Capability',
+      data: [...rx.map(m => m.cumulative_capability), ...projection.map(() => null)],
+      type: 'line',
+      borderColor: cssVar('--yellow'),
+      borderWidth: 2,
+      borderDash: [6, 4],
+      pointRadius: 0,
+      tension: 0.4,
+      fill: false,
+      _scoringType: 'regex',
+    });
+  }
+
+  chartInstances.capability = new Chart(document.getElementById('chart-capability'), {
+    type: 'bar',
+    data: { labels: allLabels.map(l => l.substring(2)), datasets: capDatasets },
     options: {
       ...CHART_DEFAULTS,
       plugins: {
@@ -1063,40 +1551,58 @@ function renderSophisticationChart(data) {
 
   const annotations = makeMilestoneAnnotations(data, epochMonth, extendedLabels.length);
 
-  new Chart(document.getElementById('chart-sophistication'), {
-    type: 'line',
-    data: {
-      labels: extendedLabels.map(l => l.substring(2)),
-      datasets: [
-        {
-          label: 'Sophistication %',
-          data: actualPadded,
-          borderColor: '#b380ff',
-          backgroundColor: 'rgba(179, 128, 255, 0.2)',
-          borderWidth: 2,
-          pointRadius: 4,
-          fill: true,
-        },
-        {
-          label: 'Linear Trend',
-          data: trendline,
-          borderColor: '#ffd93d',
-          borderWidth: 2,
-          borderDash: [5, 5],
-          pointRadius: 0,
-          fill: false,
-        },
-        {
-          label: '100% Threshold',
-          data: extendedLabels.map(() => 100),
-          borderColor: '#30363d',
-          borderWidth: 1,
-          borderDash: [3, 3],
-          pointRadius: 0,
-          fill: false,
-        },
-      ],
+  const sophDatasets = [
+    {
+      label: 'Sophistication %',
+      data: actualPadded,
+      borderColor: '#b380ff',
+      backgroundColor: 'rgba(179, 128, 255, 0.2)',
+      borderWidth: 2,
+      pointRadius: 4,
+      fill: true,
+      _scoringType: 'enriched',
     },
+    {
+      label: 'Linear Trend',
+      data: trendline,
+      borderColor: '#ffd93d',
+      borderWidth: 2,
+      borderDash: [5, 5],
+      pointRadius: 0,
+      fill: false,
+    },
+    {
+      label: '100% Threshold',
+      data: extendedLabels.map(() => 100),
+      borderColor: cssVar('--border'),
+      borderWidth: 1,
+      borderDash: [3, 3],
+      pointRadius: 0,
+      fill: false,
+    },
+  ];
+
+  // Add regex overlay if dual-scoring data is available
+  if (data.monthly_regex) {
+    const rx = data.monthly_regex;
+    const rxPadded = [...rx.map(m => Math.round(m.sophistication * 100)),
+                      ...Array(extendedLabels.length - rx.length).fill(null)];
+    sophDatasets.push({
+      label: 'Regex Sophistication %',
+      data: rxPadded,
+      borderColor: cssVar('--yellow'),
+      borderWidth: 2,
+      borderDash: [6, 4],
+      pointRadius: 3,
+      pointBackgroundColor: cssVar('--yellow'),
+      fill: false,
+      _scoringType: 'regex',
+    });
+  }
+
+  chartInstances.sophistication = new Chart(document.getElementById('chart-sophistication'), {
+    type: 'line',
+    data: { labels: extendedLabels.map(l => l.substring(2)), datasets: sophDatasets },
     options: {
       ...CHART_DEFAULTS,
       scales: {
@@ -1161,7 +1667,7 @@ function renderConvergenceChart(data) {
     label: { display: true, content: '95%', position: 'start', backgroundColor: 'transparent', color: '#4ecdc488', font: { size: 9 } },
   };
 
-  new Chart(document.getElementById('chart-convergence'), {
+  chartInstances.convergence = new Chart(document.getElementById('chart-convergence'), {
     type: 'line',
     data: {
       labels: allLabels.map(l => l.substring(2)),
@@ -1327,7 +1833,7 @@ function renderDriftChart(data) {
         ...CHART_DEFAULTS.scales,
         y: {
           ...CHART_DEFAULTS.scales.y,
-          title: { display: true, text: 'Days remaining', color: '#8b949e', font: { size: 11 } },
+          title: { display: true, text: 'Days remaining', color: cssVar('--text-dim'), font: { size: 11 } },
           reverse: false,
         },
       },
@@ -1335,10 +1841,74 @@ function renderDriftChart(data) {
   });
 }
 
+// ─── Issue Impact Table ─────────────────────────────────────────────────
+function renderIssueImpactTable(data) {
+  const issues = data.issue_scores;
+  if (!issues || issues.length === 0) return;
+
+  document.getElementById('issue-impact-section').style.display = 'block';
+  const wrapper = document.getElementById('issue-impact-table-wrapper');
+
+  const rows = issues.map(issue => {
+    const impactClass = issue.convergence_impact_days < 0 ? 'positive' : 'neutral';
+    const impactText = issue.convergence_impact_days < 0
+      ? `${issue.convergence_impact_days}d`
+      : issue.convergence_impact_days === 0 ? '0d' : `+${issue.convergence_impact_days}d`;
+
+    const catTags = Object.keys(issue.categories || {})
+      .map(c => `<span class="cat-tag">${c}</span>`)
+      .join('');
+
+    return `<tr>
+      <td class="rank">${issue.priority_rank}</td>
+      <td class="impact ${impactClass}">${impactText}</td>
+      <td class="score">${issue.projected_score}</td>
+      <td class="issue-title" title="${escapeHtml(issue.title)}">${escapeHtml(issue.title)}</td>
+      <td class="repo-name">${escapeHtml(issue.repo)}#${issue.number}</td>
+      <td class="cats">${catTags}</td>
+    </tr>`;
+  }).join('');
+
+  wrapper.innerHTML = `<table class="issue-impact-table">
+    <thead><tr>
+      <th>#</th><th>Impact</th><th>Score</th><th>Issue</th><th>Repo</th><th>Categories</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+// ─── Dual-Scoring Overlay ────────────────────────────────────────────────
+let chartInstances = {};
+
+function hasDualScoring() {
+  return DATA && DATA.monthly_regex && DATA.monthly_regex.length > 0;
+}
+
+function updateScoringOverlays() {
+  if (!hasDualScoring()) return;
+  const showEnriched = document.getElementById('toggle-enriched').checked;
+  const showRegex = document.getElementById('toggle-regex').checked;
+
+  for (const [key, chart] of Object.entries(chartInstances)) {
+    if (!chart) continue;
+    for (const ds of chart.data.datasets) {
+      if (ds._scoringType === 'enriched') {
+        ds.hidden = !showEnriched;
+      } else if (ds._scoringType === 'regex') {
+        ds.hidden = !showRegex;
+      }
+    }
+    chart.update();
+  }
+}
+
 // ─── Init ───────────────────────────────────────────────────────────────
 async function init() {
   DATA = await loadData();
   const data = DATA;
+
+  // Enable export when data is available
+  if (data) document.getElementById('btn-export').disabled = false;
 
   // Countdown
   const targetDate = data.models?.convergence_date || '2026-06-30';
@@ -1361,9 +1931,11 @@ async function init() {
 
   // Progress bar
   const fill = document.getElementById('progress-fill');
+  const bar = document.getElementById('progress-bar');
   setTimeout(() => {
     fill.style.width = `${Math.min(100, pct)}%`;
     fill.textContent = `${pct.toFixed(1)}%`;
+    bar.setAttribute('aria-valuenow', Math.round(pct));
   }, 100);
 
   // Charts — wrap each in try/catch so partial data doesn't break everything
@@ -1372,6 +1944,15 @@ async function init() {
   try { renderCapabilityChart(data); } catch (e) { console.warn('Capability chart error:', e); }
   try { renderSophisticationChart(data); } catch (e) { console.warn('Sophistication chart error:', e); }
   try { renderConvergenceChart(data); } catch (e) { console.warn('Convergence chart error:', e); }
+  try { renderIssueImpactTable(data); } catch (e) { console.warn('Issue impact table error:', e); }
+
+  // Show scoring toggles if dual-scoring data is present
+  if (hasDualScoring()) {
+    document.getElementById('scoring-toggles').classList.add('active');
+    const modeLabel = document.getElementById('scoring-mode-label');
+    modeLabel.textContent = data.scoring_mode || 'enriched';
+    modeLabel.style.color = cssVar('--teal');
+  }
 
   // Footer
   const footer = document.getElementById('footer');
@@ -1380,6 +1961,7 @@ async function init() {
   if (data.repos_scanned) parts.push(`${data.repos_scanned} repos`);
   if (data.total_commits) parts.push(`${data.total_commits.toLocaleString()} commits`);
   if (data.inception_date) parts.push(`Inception: ${data.inception_date}`);
+  if (data.scoring_mode) parts.push(`Scoring: ${data.scoring_mode}`);
   footer.textContent = parts.join(' | ') || 'No scan data available';
 
   // Show warning banner for partial data

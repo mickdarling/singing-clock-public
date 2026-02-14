@@ -285,6 +285,57 @@ for cat in CATEGORIES.values():
 HIGH_LEVEL_CATS = {"agents", "self_modify", "meta", "aql"}
 LOW_LEVEL_CATS = {"foundation", "elements", "integration"}
 
+# Maximum possible weighted score per commit (sum of all category weights * max hits of 3)
+_MAX_WEIGHTED = sum(c["weight"] for c in CATEGORIES.values())
+# Number of categories for breadth scoring
+_NUM_CATS = len(CATEGORIES)
+
+
+def compute_sophistication(cat_scores):
+    """Compute sophistication for a month's category scores.
+
+    Combines three signals:
+    - Weighted score ratio: high-weight categories / total (weighted by category weights)
+    - Category breadth: fraction of distinct categories active this month
+    - Blend: 70% weighted ratio + 30% breadth
+
+    Returns a value in [0, 1].
+    """
+    if not cat_scores:
+        return 0.0
+
+    # Weighted ratio: sum(weight * score) for high-level / sum(weight * score) for all
+    weighted_high = sum(
+        CATEGORIES[k]["weight"] * v
+        for k, v in cat_scores.items()
+        if k in HIGH_LEVEL_CATS and k in CATEGORIES
+    )
+    weighted_total = sum(
+        CATEGORIES[k]["weight"] * v
+        for k, v in cat_scores.items()
+        if k in CATEGORIES
+    )
+    ratio = weighted_high / weighted_total if weighted_total > 0 else 0
+
+    # Breadth: fraction of categories with any score
+    active_cats = sum(1 for k in cat_scores if k in CATEGORIES and cat_scores[k] > 0)
+    breadth = active_cats / _NUM_CATS
+
+    return 0.7 * ratio + 0.3 * breadth
+
+
+def smooth_sophistication(raw_values, alpha=0.4):
+    """Apply exponential moving average to smooth noisy sophistication values.
+
+    alpha controls responsiveness: higher = more responsive, lower = smoother.
+    """
+    if not raw_values:
+        return []
+    smoothed = [raw_values[0]]
+    for v in raw_values[1:]:
+        smoothed.append(alpha * v + (1 - alpha) * smoothed[-1])
+    return smoothed
+
 
 # ─── Repo Discovery ─────────────────────────────────────────────────────
 
@@ -849,16 +900,22 @@ def load_history():
     return []
 
 
-def record_history(models, current):
-    """Append a snapshot to history.json and return the full history."""
+def record_history(models, current, scoring_method="regex"):
+    """Append a snapshot to history.json and return the full history.
+
+    Deduplicates entries: skips append if the previous entry has the same
+    convergence_date and total_commits (i.e. nothing changed).
+    """
     history = load_history()
+    cap_model = models.get("capability", {})
     entry = {
         "scan_time": datetime.datetime.now().isoformat(timespec="seconds"),
+        "scoring_method": scoring_method,
         "convergence_date": models.get("convergence_date"),
         "component_dates": {
             "commit_zero": models.get("commit_rate", {}).get("zero_date"),
-            "capability_95": models.get("capability", {}).get("pct_95_date"),
-            "capability_99": models.get("capability", {}).get("pct_99_date"),
+            "capability_95": cap_model.get("pct_95_date"),
+            "capability_99": cap_model.get("pct_99_date"),
             "sophistication_100": models.get("sophistication", {}).get("pct_100_date"),
         },
         "days_until_convergence": (
@@ -866,8 +923,21 @@ def record_history(models, current):
             if models.get("convergence_date") else None
         ),
         "total_commits": current.get("total_commits", 0),
+        "total_capability": current.get("total_capability", 0),
         "pct_of_asymptote": current.get("pct_of_asymptote", 0),
+        "capability_L": cap_model.get("L"),
+        "capability_r2": cap_model.get("r_squared"),
+        "commit_rate_r2": models.get("commit_rate", {}).get("r_squared"),
     }
+
+    # Deduplicate: skip if same convergence_date + total_commits as last entry
+    if history:
+        prev = history[-1]
+        if (prev.get("convergence_date") == entry["convergence_date"]
+                and prev.get("total_commits") == entry["total_commits"]):
+            print(f"  History unchanged (same convergence date + commits), skipping")
+            return history
+
     history.append(entry)
     try:
         HISTORY_FILE.write_text(json.dumps(history, indent=2))
@@ -1129,6 +1199,165 @@ def enrich_commits(commits, enrich_cache, model_name):
     return enriched_count, fallback_count
 
 
+# ─── Issue Impact Scoring ────────────────────────────────────────────────
+
+def discover_open_issues(repos):
+    """Use gh CLI to list open issues across all scanned repos.
+
+    Returns list of dicts: {repo, number, title, body, labels}.
+    Silently skips repos where gh fails (not a GitHub repo, no access, etc.).
+    """
+    issues = []
+    for repo_path in repos:
+        repo_name = os.path.basename(repo_path)
+        try:
+            # Try to get the GitHub remote URL
+            result = subprocess.run(
+                ["git", "-C", repo_path, "remote", "get-url", "origin"],
+                capture_output=True, text=True, timeout=10,
+            )
+            remote = result.stdout.strip()
+            if not remote or "github.com" not in remote:
+                continue
+
+            # Extract owner/repo from remote URL
+            # Handles both https://github.com/owner/repo.git and git@github.com:owner/repo.git
+            gh_repo = None
+            if "github.com/" in remote:
+                gh_repo = remote.split("github.com/")[-1]
+            elif "github.com:" in remote:
+                gh_repo = remote.split("github.com:")[-1]
+            if gh_repo:
+                gh_repo = gh_repo.rstrip("/").removesuffix(".git")
+
+            if not gh_repo:
+                continue
+
+            # Fetch open issues
+            result = subprocess.run(
+                ["gh", "issue", "list", "--repo", gh_repo, "--state", "open",
+                 "--json", "number,title,body,labels", "--limit", "100"],
+                capture_output=True, text=True, timeout=30,
+            )
+            if result.returncode != 0:
+                continue
+
+            repo_issues = json.loads(result.stdout)
+            for issue in repo_issues:
+                issues.append({
+                    "repo": repo_name,
+                    "gh_repo": gh_repo,
+                    "number": issue.get("number"),
+                    "title": issue.get("title", ""),
+                    "body": issue.get("body", ""),
+                    "labels": [l.get("name", "") for l in issue.get("labels", [])],
+                })
+            if repo_issues:
+                print(f"  {repo_name}: {len(repo_issues)} open issues")
+        except (subprocess.TimeoutExpired, Exception) as e:
+            continue  # silently skip — many repos won't have gh access
+
+    return issues
+
+
+def score_issue(title, body=""):
+    """Score an issue's title + body against the CATEGORIES rubric.
+
+    Returns (total, cats) same as score_commit().
+    """
+    text = f"{title} {body}".lower()
+    scores = {}
+    total = 0
+
+    for cat_name, cat in CATEGORIES.items():
+        hits = sum(1 for p in cat["compiled"] if p.search(text))
+        if hits > 0:
+            score = cat["weight"] * min(hits, 3)
+            scores[cat_name] = score
+            total += score
+
+    if total == 0:
+        total = 0.5
+
+    return total, scores
+
+
+def estimate_convergence_impact(projected_score, models):
+    """Estimate how many days closer to convergence an issue would bring.
+
+    Uses the capability logistic model: adding projected_score to current
+    capability shifts the curve, bringing the 95% date closer.
+    """
+    cap = models.get("capability", {})
+    L = cap.get("L", 0)
+    r = cap.get("r", 0)
+    t_mid = cap.get("t_mid", 0)
+
+    if L <= 0 or r <= 0:
+        return 0.0
+
+    # Current capability and time
+    # The sensitivity of the logistic curve: d(cap)/d(score_added) ≈ r * pct * (1 - pct)
+    # Near saturation (high pct), each point has less impact
+    pct = cap.get("pct_now", 0) / 100.0
+    pct = max(0.01, min(0.99, pct))
+
+    # Approximate: adding `projected_score` to cumulative capability
+    # shifts the effective time position by projected_score / (L * r * pct * (1-pct))
+    # Convert time shift (in month-units) to days
+    sensitivity = L * r * pct * (1 - pct)
+    if sensitivity < 1:
+        sensitivity = 1
+    time_shift_months = projected_score / sensitivity
+    days_impact = time_shift_months * 30.44
+
+    return round(-days_impact, 1)  # negative = closer to convergence
+
+
+def score_all_issues(repos, models, enrich_cache=None, enrich_model=None):
+    """Discover and score open issues across scanned repos.
+
+    Returns list of scored issues sorted by convergence impact.
+    """
+    print("\nDiscovering open issues...")
+    issues = discover_open_issues(repos)
+
+    if not issues:
+        print("  No open issues found (gh CLI may not be available)")
+        return []
+
+    print(f"  {len(issues)} open issues found across repos")
+    print("  Scoring issues...")
+
+    scored_issues = []
+    for issue in issues:
+        total, cats = score_issue(issue["title"], issue.get("body", ""))
+
+        impact = estimate_convergence_impact(total, models)
+
+        scored_issues.append({
+            "repo": issue["repo"],
+            "number": issue["number"],
+            "title": issue["title"],
+            "labels": issue.get("labels", []),
+            "categories": cats,
+            "projected_score": round(total, 1),
+            "convergence_impact_days": impact,
+        })
+
+    # Sort by impact (most negative = most impactful)
+    scored_issues.sort(key=lambda x: x["convergence_impact_days"])
+
+    # Add rank
+    for i, issue in enumerate(scored_issues):
+        issue["priority_rank"] = i + 1
+
+    print(f"  Top issue: #{scored_issues[0]['number']} ({scored_issues[0]['title'][:50]}) "
+          f"= {scored_issues[0]['convergence_impact_days']} days")
+
+    return scored_issues
+
+
 # ─── Main ────────────────────────────────────────────────────────────────
 
 def main(args=None):
@@ -1187,22 +1416,29 @@ def main(args=None):
     print("\nScoring commits...")
     cache = load_score_cache()
     scored = []
+    scored_regex = []  # always holds regex-only scores (for dual-scoring output)
     cache_hits = 0
     for date, message, repo, hash_id in commits:
+        # Always compute regex score for dual-scoring support
+        if hash_id in cache and cache[hash_id]["v"] == SCORE_CACHE_VERSION:
+            rx_total, rx_cats = cache[hash_id]["total"], cache[hash_id]["cats"]
+            cache_hits += 1
+        else:
+            base_total, base_cats = score_commit(message)
+            ds = diffstat_cache.get(hash_id)
+            rx_total, rx_cats = apply_diffstat_weight(base_total, base_cats, ds)
+            cache[hash_id] = {"v": SCORE_CACHE_VERSION, "total": rx_total, "cats": rx_cats}
+
         if enrich_cache is not None and hash_id in enrich_cache and not hash_id.startswith("_"):
             # Enriched: use LLM classification + diffstat weighting
             total, cats = enrich_score(enrich_cache[hash_id])
             ds = diffstat_cache.get(hash_id)
             total, cats = apply_diffstat_weight(total, cats, ds)
-        elif hash_id in cache and cache[hash_id]["v"] == SCORE_CACHE_VERSION:
-            total, cats = cache[hash_id]["total"], cache[hash_id]["cats"]
-            cache_hits += 1
         else:
-            base_total, base_cats = score_commit(message)
-            ds = diffstat_cache.get(hash_id)
-            total, cats = apply_diffstat_weight(base_total, base_cats, ds)
-            cache[hash_id] = {"v": SCORE_CACHE_VERSION, "total": total, "cats": cats}
+            total, cats = rx_total, rx_cats
+
         scored.append((date, total, cats, message, repo, hash_id))
+        scored_regex.append((date, rx_total, rx_cats, message, repo, hash_id))
     save_score_cache(cache)
     print(f"  {cache_hits} cached, {len(commits) - cache_hits} scored fresh")
 
@@ -1230,9 +1466,21 @@ def main(args=None):
         for cat, score in cats.items():
             monthly_cat_scores[key][cat] += score
 
+    # Also aggregate regex-only scores when enrichment is active
+    rx_monthly_capability = defaultdict(float)
+    rx_monthly_cat_scores = defaultdict(lambda: defaultdict(float))
+    if enrich_cache is not None:
+        for date, total, cats, message, repo, _ in scored_regex:
+            key = (date.year, date.month)
+            rx_monthly_capability[key] += total
+            for cat, score in cats.items():
+                rx_monthly_cat_scores[key][cat] += score
+
     cum_commits = 0
     cum_capability = 0
+    rx_cum_capability = 0
     monthly_data = []
+    monthly_regex_data = []
 
     for ym in all_months:
         c = monthly_commits.get(ym, 0)
@@ -1241,9 +1489,7 @@ def main(args=None):
         cum_capability += cap
 
         cats = monthly_cat_scores.get(ym, {})
-        high = sum(v for k, v in cats.items() if k in HIGH_LEVEL_CATS)
-        total_cat = sum(cats.values()) if cats else 1
-        soph = high / total_cat if total_cat > 0 else 0
+        soph = compute_sophistication(cats)
 
         monthly_data.append({
             "month": f"{ym[0]}-{ym[1]:02d}",
@@ -1253,6 +1499,33 @@ def main(args=None):
             "cumulative_commits": cum_commits,
             "cumulative_capability": round(cum_capability),
         })
+
+        # Build regex-only monthly data when enrichment is active
+        if enrich_cache is not None:
+            rx_cap = rx_monthly_capability.get(ym, 0)
+            rx_cum_capability += rx_cap
+            rx_cats = rx_monthly_cat_scores.get(ym, {})
+            rx_soph = compute_sophistication(rx_cats)
+            monthly_regex_data.append({
+                "month": f"{ym[0]}-{ym[1]:02d}",
+                "commits": c,
+                "capability": round(rx_cap),
+                "sophistication": round(rx_soph, 3),
+                "cumulative_commits": cum_commits,
+                "cumulative_capability": round(rx_cum_capability),
+            })
+
+    # Smooth sophistication values with EMA
+    raw_soph = [m["sophistication"] for m in monthly_data]
+    smoothed = smooth_sophistication(raw_soph)
+    for i, m in enumerate(monthly_data):
+        m["sophistication"] = round(smoothed[i], 3)
+
+    if monthly_regex_data:
+        rx_raw_soph = [m["sophistication"] for m in monthly_regex_data]
+        rx_smoothed = smooth_sophistication(rx_raw_soph)
+        for i, m in enumerate(monthly_regex_data):
+            m["sophistication"] = round(rx_smoothed[i], 3)
 
     # Aggregate by week
     print("Aggregating by week...")
@@ -1306,12 +1579,14 @@ def main(args=None):
 
     # Record history
     print("\nRecording convergence history...")
-    convergence_history = record_history(models, current)
+    scoring_method = f"llm_{args['enrich_model']}" if args.get("enrich") else "regex"
+    convergence_history = record_history(models, current, scoring_method)
 
     # Build output
     output = {
         "generated": datetime.datetime.now().isoformat(timespec="seconds"),
         "inception_date": INCEPTION_DATE,
+        "scoring_mode": scoring_method,
         "repos_scanned": len(repos),
         "total_commits": len(commits),
         "monthly": monthly_data,
@@ -1321,6 +1596,15 @@ def main(args=None):
         "category_monthly": category_monthly,
         "convergence_history": convergence_history,
     }
+
+    # Include regex-only monthly data for dual-scoring overlays
+    if monthly_regex_data:
+        output["monthly_regex"] = monthly_regex_data
+
+    # Score open issues for convergence impact
+    issue_scores = score_all_issues(repos, models, enrich_cache, args.get("enrich_model"))
+    if issue_scores:
+        output["issue_scores"] = issue_scores
 
     # Write JSON
     with open(OUTPUT_FILE, "w") as f:
