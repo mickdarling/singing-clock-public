@@ -1710,131 +1710,183 @@ function renderConvergenceChart(data) {
 
 // ─── Drift Chart ────────────────────────────────────────────────────────
 function renderDriftChart(data) {
-  const history = data.convergence_history || [];
-  if (history.length < 1) return;
+  const rawHistory = data.convergence_history || [];
+  if (rawHistory.length < 1) return;
 
   document.getElementById('drift-section').style.display = 'block';
 
-  const labels = history.map(h => {
-    const d = new Date(h.scan_time);
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  });
+  // Deduplicate: collapse entries with identical convergence_date + total_commits
+  const history = [];
+  for (const h of rawHistory) {
+    const prev = history[history.length - 1];
+    if (prev && prev.convergence_date === h.convergence_date
+        && prev.total_commits === h.total_commits) continue;
+    history.push(h);
+  }
+  if (history.length < 1) return;
 
-  const daysUntil = history.map(h => h.days_until_convergence);
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const nowMs = now.getTime();
+  const DAY_MS = 86400000;
 
-  // Component date lines: convert each target date to "days from today at scan time"
-  function dateToDaysFrom(targetDate, scanTime) {
-    if (!targetDate) return null;
-    const target = new Date(targetDate + 'T00:00:00');
-    const scan = new Date(scanTime);
-    scan.setHours(0,0,0,0);
-    return Math.round((target - scan) / 86400000);
+  // Days from today for a date string (positive = future)
+  function daysFromNow(dateStr) {
+    if (!dateStr) return null;
+    return Math.round((new Date(dateStr + 'T00:00:00').getTime() - nowMs) / DAY_MS);
   }
 
-  const commitZero = history.map(h => dateToDaysFrom(h.component_dates?.commit_zero, h.scan_time));
-  const cap95 = history.map(h => dateToDaysFrom(h.component_dates?.capability_95, h.scan_time));
-  const cap99 = history.map(h => dateToDaysFrom(h.component_dates?.capability_99, h.scan_time));
-  const soph100 = history.map(h => dateToDaysFrom(h.component_dates?.sophistication_100, h.scan_time));
+  // Calendar date for a days-from-today value
+  function daysToDateStr(days) {
+    const d = new Date(nowMs + days * DAY_MS);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+  function daysToDateShort(days) {
+    const d = new Date(nowMs + days * DAY_MS);
+    return d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+  }
 
-  // Trend summary
+  // Scan labels: indexed with date
+  const scanLabels = history.map((h, i) => {
+    const d = new Date(h.scan_time);
+    return '#' + (i + 1) + ' (' + d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ')';
+  });
+
+  // Component data as days-from-today
+  const COMPONENTS = [
+    { key: 'convergence', get: h => h.convergence_date, label: 'Convergence',
+      color: '#ffd93d', width: 3, radius: 6, dash: null },
+    { key: 'commit_zero', get: h => h.component_dates?.commit_zero, label: 'Commit Zero',
+      color: '#ff6b6b', width: 2, radius: 4, dash: [6, 3] },
+    { key: 'cap95', get: h => h.component_dates?.capability_95, label: 'Capability 95%',
+      color: '#4ecdc4', width: 2, radius: 4, dash: [6, 3] },
+    { key: 'cap99', get: h => h.component_dates?.capability_99, label: 'Capability 99%',
+      color: '#58a6ff', width: 2, radius: 4, dash: [6, 3] },
+    { key: 'soph100', get: h => h.component_dates?.sophistication_100, label: 'Sophistication 100%',
+      color: '#b380ff', width: 2, radius: 4, dash: [6, 3] },
+  ];
+
+  const componentData = COMPONENTS.map(c => ({
+    ...c,
+    days: history.map(h => daysFromNow(c.get(h))),
+    dates: history.map(h => c.get(h)),
+  }));
+
+  // Trend summary with drift rate
+  const convDays = componentData[0].days;
   if (history.length >= 2) {
-    const first = daysUntil[0];
-    const last = daysUntil[daysUntil.length - 1];
+    const first = convDays[0];
+    const last = convDays[convDays.length - 1];
     const scans = history.length - 1;
-    const drift = (first - last) / scans;
+    const totalDrift = last - first; // positive = sliding further, negative = getting closer
+    const driftPerScan = totalDrift / scans;
     const summaryEl = document.getElementById('drift-summary');
-    if (drift > 0) {
-      summaryEl.innerHTML = `Convergence is moving <strong style="color:var(--teal);">${drift.toFixed(1)} days closer</strong> per scan (${scans} scan${scans > 1 ? 's' : ''})`;
-    } else if (drift < 0) {
-      summaryEl.innerHTML = `Convergence is drifting <strong style="color:var(--red);">${Math.abs(drift).toFixed(1)} days further</strong> per scan (${scans} scan${scans > 1 ? 's' : ''})`;
+    const targetDate = daysToDateStr(last);
+    if (totalDrift < 0) {
+      summaryEl.innerHTML = `Target: <strong>${targetDate}</strong> (${last}d) &mdash; moving <strong style="color:var(--teal);">${Math.abs(driftPerScan).toFixed(1)}d closer</strong> per scan &mdash; ${Math.abs(totalDrift)}d improvement over ${scans} scan${scans > 1 ? 's' : ''}`;
+    } else if (totalDrift > 0) {
+      summaryEl.innerHTML = `Target: <strong>${targetDate}</strong> (${last}d) &mdash; drifting <strong style="color:var(--red);">${driftPerScan.toFixed(1)}d further</strong> per scan &mdash; ${totalDrift}d slippage over ${scans} scan${scans > 1 ? 's' : ''}`;
     } else {
-      summaryEl.innerHTML = `Convergence date is <strong>stable</strong> across ${scans} scan${scans > 1 ? 's' : ''}`;
+      summaryEl.innerHTML = `Target: <strong>${targetDate}</strong> (${last}d) &mdash; <strong>stable</strong> across ${scans} scan${scans > 1 ? 's' : ''}`;
     }
   }
 
+  // Build datasets
+  const datasets = componentData.map(c => ({
+    label: c.label,
+    data: c.days,
+    borderColor: c.color,
+    borderWidth: c.width,
+    borderDash: c.dash || [],
+    pointRadius: c.radius,
+    pointHoverRadius: c.radius + 2,
+    pointBackgroundColor: c.color,
+    fill: false,
+    tension: 0,
+  }));
+
   new Chart(document.getElementById('chart-drift'), {
     type: 'line',
-    data: {
-      labels,
-      datasets: [
-        {
-          label: 'Days Until Convergence',
-          data: daysUntil,
-          borderColor: '#ffd93d',
-          backgroundColor: 'rgba(255, 217, 61, 0.1)',
-          borderWidth: 3,
-          pointRadius: 5,
-          pointBackgroundColor: '#ffd93d',
-          fill: true,
-          tension: 0.3,
-        },
-        {
-          label: 'Commit Zero',
-          data: commitZero,
-          borderColor: '#ff6b6b',
-          borderWidth: 1.5,
-          borderDash: [6, 3],
-          pointRadius: 3,
-          fill: false,
-          tension: 0.3,
-        },
-        {
-          label: 'Capability 95%',
-          data: cap95,
-          borderColor: '#4ecdc4',
-          borderWidth: 1.5,
-          borderDash: [6, 3],
-          pointRadius: 3,
-          fill: false,
-          tension: 0.3,
-        },
-        {
-          label: 'Capability 99%',
-          data: cap99,
-          borderColor: '#58a6ff',
-          borderWidth: 1.5,
-          borderDash: [6, 3],
-          pointRadius: 3,
-          fill: false,
-          tension: 0.3,
-        },
-        {
-          label: 'Sophistication 100%',
-          data: soph100,
-          borderColor: '#b380ff',
-          borderWidth: 1.5,
-          borderDash: [6, 3],
-          pointRadius: 3,
-          fill: false,
-          tension: 0.3,
-        },
-      ],
-    },
+    data: { labels: scanLabels, datasets },
     options: {
       ...CHART_DEFAULTS,
+      interaction: { mode: 'index', intersect: false },
       plugins: {
         ...CHART_DEFAULTS.plugins,
+        annotation: {
+          annotations: {
+            today: {
+              type: 'line', yMin: 0, yMax: 0,
+              borderColor: cssVar('--text-dim'), borderWidth: 1, borderDash: [4, 4],
+              label: { display: true, content: 'Today', position: 'start',
+                color: cssVar('--text-dim'), font: { size: 10 }, backgroundColor: 'transparent' },
+            },
+          },
+        },
         tooltip: {
+          mode: 'index', intersect: false,
           callbacks: {
-            afterBody(items) {
+            title(items) {
               const idx = items[0]?.dataIndex;
               if (idx === undefined) return '';
               const h = history[idx];
-              const lines = [];
-              if (h.convergence_date) lines.push(`Target: ${h.convergence_date}`);
-              if (h.pct_of_asymptote) lines.push(`Capability: ${h.pct_of_asymptote}%`);
-              if (h.total_commits) lines.push(`Commits: ${h.total_commits.toLocaleString()}`);
-              return lines.join('\n');
+              const d = new Date(h.scan_time);
+              return 'Scan #' + (idx + 1) + ' \u2014 ' + d.toLocaleDateString('en-US', {
+                month: 'short', day: 'numeric', year: 'numeric',
+                hour: 'numeric', minute: '2-digit',
+              });
+            },
+            label(ctx) {
+              const days = ctx.raw;
+              if (days === null) return '  ' + ctx.dataset.label + ': N/A';
+              const comp = componentData[ctx.datasetIndex];
+              const dateStr = comp.dates[ctx.dataIndex] || 'N/A';
+              const firstDays = comp.days[0];
+              const delta = days - firstDays;
+              const deltaStr = delta === 0 ? 'stable' :
+                delta > 0 ? '+' + delta + 'd' : delta + 'd';
+              return '  ' + ctx.dataset.label + ': ' + dateStr + ' (' + days + 'd, ' + deltaStr + ')';
+            },
+            footer(items) {
+              const idx = items[0]?.dataIndex;
+              if (idx === undefined) return '';
+              const h = history[idx];
+              const parts = [];
+              if (h.pct_of_asymptote) parts.push('Capability: ' + h.pct_of_asymptote + '%');
+              if (h.total_commits) parts.push('Commits: ' + h.total_commits.toLocaleString());
+              return parts.join(' | ');
             },
           },
         },
       },
       scales: {
-        ...CHART_DEFAULTS.scales,
+        x: {
+          ...CHART_DEFAULTS.scales.x,
+          ticks: { ...CHART_DEFAULTS.scales.x.ticks, maxRotation: 0 },
+        },
         y: {
-          ...CHART_DEFAULTS.scales.y,
-          title: { display: true, text: 'Days remaining', color: cssVar('--text-dim'), font: { size: 11 } },
-          reverse: false,
+          type: 'linear',
+          position: 'left',
+          grid: { color: cssVar('--grid') },
+          ticks: {
+            color: cssVar('--text-dim'),
+            callback(value) { return value + 'd'; },
+          },
+          title: { display: true, text: 'Days from today', color: cssVar('--text-dim'), font: { size: 11 } },
+        },
+        yDate: {
+          type: 'linear',
+          position: 'right',
+          grid: { drawOnChartArea: false },
+          ticks: {
+            color: cssVar('--text-dim'),
+            callback(value) { return daysToDateShort(value); },
+          },
+          title: { display: true, text: 'Predicted date', color: cssVar('--text-dim'), font: { size: 11 } },
+          afterDataLimits(axis) {
+            const left = axis.chart.scales.y;
+            if (left) { axis.min = left.min; axis.max = left.max; }
+          },
         },
       },
     },
