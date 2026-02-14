@@ -364,10 +364,87 @@
     to { opacity: 1; transform: translateY(0); }
   }
 
+  /* Tablet landscape and smaller */
   @media (max-width: 900px) {
     .charts { grid-template-columns: 1fr; }
     .countdown { font-size: 3rem; }
     .countdown-detail { font-size: 1.5rem; }
+  }
+
+  /* Tablet portrait */
+  @media (max-width: 768px) {
+    body { padding: 1rem; }
+
+    .hero { padding: 2rem 0.75rem; }
+    .hero h1 { font-size: 1rem; letter-spacing: 0.2em; }
+
+    .meta-stats { gap: 1.5rem; }
+    .stat-value { font-size: 1.4rem; }
+    .stat-label { font-size: 0.65rem; }
+
+    .controls { flex-wrap: wrap; justify-content: center; }
+
+    .btn { padding: 0.6rem 1.25rem; min-height: 44px; min-width: 44px; }
+
+    .chart-card { padding: 1rem; }
+    .chart-card h2 { font-size: 0.8rem; }
+    .chart-container { height: 240px; }
+
+    .progress-bar-container { padding: 1rem; }
+    .progress-markers { font-size: 0.6rem; }
+    .progress-markers span:nth-child(2) { display: none; }
+
+    .footer { font-size: 0.65rem; padding: 1.5rem 0.5rem; }
+
+    .onboarding { padding: 1.5rem 0.5rem 2rem; }
+    .onboarding h2 { font-size: 1.3rem; }
+    .onboarding-step { padding: 0.85rem 1rem; }
+  }
+
+  /* Phone */
+  @media (max-width: 480px) {
+    body { padding: 0.5rem; }
+
+    .hero { padding: 1.5rem 0.5rem; margin-bottom: 1rem; }
+    .hero h1 { font-size: 0.85rem; letter-spacing: 0.15em; margin-bottom: 0.5rem; }
+
+    .countdown { font-size: 2.5rem; }
+    .countdown-label { font-size: 0.8rem; margin-bottom: 1rem; }
+    .countdown-detail { font-size: 1.2rem; }
+
+    .meta-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+    .meta-stats .stat:last-child {
+      grid-column: 1 / -1;
+    }
+    .stat-value { font-size: 1.2rem; }
+
+    .controls {
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .btn { font-size: 0.75rem; padding: 0.6rem 1rem; }
+    .scan-status { width: 100%; text-align: center; order: -1; }
+
+    .chart-container { height: 200px; }
+    .charts { gap: 1rem; }
+
+    .progress-bar { height: 24px; }
+    .progress-fill { font-size: 0.7rem; padding-right: 8px; }
+    .progress-markers span:nth-child(3) { display: none; }
+
+    .footer { word-break: break-word; }
+
+    .onboarding h2 { font-size: 1.1rem; }
+    .onboarding .tagline { font-size: 0.85rem; margin-bottom: 1.5rem; }
+    .onboarding-steps { gap: 1rem; }
+    .onboarding-step { flex-direction: column; gap: 0.5rem; padding: 0.75rem; }
+    .step-number { width: 24px; height: 24px; font-size: 0.75rem; }
+    .onboarding-actions .btn-primary { width: 100%; }
   }
 </style>
 </head>
