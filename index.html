@@ -37,6 +37,38 @@
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
+  .skip-link {
+    position: absolute;
+    top: -100%;
+    left: 1rem;
+    background: var(--teal);
+    color: #000;
+    padding: 0.5rem 1rem;
+    border-radius: 0 0 6px 6px;
+    z-index: 2000;
+    font-size: 0.85rem;
+    text-decoration: none;
+  }
+
+  .skip-link:focus { top: 0; }
+
+  :focus-visible {
+    outline: 2px solid var(--teal);
+    outline-offset: 2px;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+
   body {
     background: var(--bg);
     color: var(--text);
@@ -568,13 +600,15 @@
 })();
 </script>
 
-<div class="hero">
+<a href="#main-content" class="skip-link">Skip to main content</a>
+
+<header class="hero">
   <h1>Singing Clock</h1>
-  <div class="countdown" id="countdown-days">---</div>
+  <div class="countdown" id="countdown-days" aria-live="polite">---</div>
   <div class="countdown-label">days until graduation</div>
-  <div class="countdown-detail" id="countdown-full">--d --h --m --s</div>
+  <div class="countdown-detail" id="countdown-full" aria-label="Detailed countdown timer">--d --h --m --s</div>
   <div id="convergence-date" style="color: var(--text-dim); font-size: 0.9rem;"></div>
-  <div class="meta-stats">
+  <div class="meta-stats" role="group" aria-label="Key metrics">
     <div class="stat">
       <div class="stat-value" style="color: var(--teal);" id="stat-capability">--</div>
       <div class="stat-label"><span class="help-hint" title="Logistic-model % of maximum capability reached">Self-Sufficiency</span></div>
@@ -596,20 +630,22 @@
       <div class="stat-label"><span class="help-hint" title="Days elapsed since the first scored commit">Day of Project</span></div>
     </div>
   </div>
-</div>
+</header>
 
-<div class="controls">
-  <span class="scan-status" id="scan-status"></span>
+<nav class="controls" aria-label="Dashboard controls">
+  <span class="scan-status" id="scan-status" aria-live="polite"></span>
   <button class="btn-primary btn" id="btn-scan" onclick="triggerScan()">Rescan Repos</button>
   <button class="btn" onclick="location.reload()">Refresh</button>
-  <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark theme"></button>
+  <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark theme" aria-label="Toggle light/dark theme"></button>
   <button class="btn" onclick="openGlossary()" title="Terminology guide">? Help</button>
-</div>
+</nav>
 
-<div class="progress-bar-container">
+<main id="main-content">
+
+<section class="progress-bar-container" aria-label="Capability progress">
   <h2>Capability Progress</h2>
   <div class="chart-subtitle">Logistic model fit: current % of predicted maximum capability</div>
-  <div class="progress-bar">
+  <div class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" aria-label="Capability progress" id="progress-bar">
     <div class="progress-fill" id="progress-fill" style="width: 0%;">0%</div>
   </div>
   <div class="progress-markers">
@@ -618,47 +654,49 @@
     <span>95% - Self-Sufficient</span>
     <span>100%</span>
   </div>
-</div>
+</section>
 
-<div class="drift-container" id="drift-section" style="display:none;">
+<section class="drift-container" id="drift-section" style="display:none;" aria-label="Convergence date drift">
   <div class="chart-card" style="max-width:1400px; margin:0 auto 1.5rem;">
     <h2>Convergence Date Drift</h2>
     <div class="chart-subtitle">How the predicted graduation date shifts over successive scans</div>
-    <div class="chart-container" style="height: 300px;"><canvas id="chart-drift"></canvas></div>
+    <div class="chart-container" style="height: 300px;"><canvas id="chart-drift" role="img" aria-label="Convergence date drift chart showing prediction changes over time"></canvas></div>
     <div id="drift-summary" style="margin-top:1rem; font-size:0.85rem; color:var(--text-dim); text-align:center;"></div>
   </div>
-</div>
+</section>
 
-<div class="charts">
+<section class="charts" aria-label="Data visualizations">
   <div class="chart-card">
     <h2>Commit Rate (Actual + Projected)</h2>
     <div class="chart-subtitle">Monthly commit volume with logistic projection overlay</div>
-    <div class="chart-container"><canvas id="chart-commits"></canvas></div>
+    <div class="chart-container"><canvas id="chart-commits" role="img" aria-label="Commit rate chart showing actual and projected monthly commits"></canvas></div>
   </div>
   <div class="chart-card">
     <h2>Cumulative Capability</h2>
     <div class="chart-subtitle">Running total of weighted capability score with logistic fit</div>
-    <div class="chart-container"><canvas id="chart-capability"></canvas></div>
+    <div class="chart-container"><canvas id="chart-capability" role="img" aria-label="Cumulative capability score chart with logistic model fit"></canvas></div>
   </div>
   <div class="chart-card">
     <h2>Sophistication Trend</h2>
     <div class="chart-subtitle">High-weight category ratio per month (agents, self-modify, meta)</div>
-    <div class="chart-container"><canvas id="chart-sophistication"></canvas></div>
+    <div class="chart-container"><canvas id="chart-sophistication" role="img" aria-label="Sophistication trend chart showing monthly high-weight category ratios"></canvas></div>
   </div>
   <div class="chart-card">
     <h2>Convergence: Effort vs. Capability</h2>
     <div class="chart-subtitle">Commit rate derivative vs. capability derivative — crossing = graduation</div>
-    <div class="chart-container"><canvas id="chart-convergence"></canvas></div>
+    <div class="chart-container"><canvas id="chart-convergence" role="img" aria-label="Convergence chart comparing effort and capability derivatives"></canvas></div>
   </div>
-</div>
+</section>
 
-<div class="footer" id="footer">
+</main>
+
+<footer class="footer" id="footer">
   Loading data...
-</div>
+</footer>
 
-<div class="help-modal-overlay" id="glossary-overlay">
+<div class="help-modal-overlay" id="glossary-overlay" role="dialog" aria-modal="true" aria-label="Glossary and terminology guide">
   <div class="help-modal">
-    <button class="close-btn" onclick="closeGlossary()">&times;</button>
+    <button class="close-btn" onclick="closeGlossary()" aria-label="Close glossary">&times;</button>
     <h2>Glossary &amp; Terminology</h2>
     <dl>
       <dt>Convergence</dt>
@@ -1571,9 +1609,11 @@ async function init() {
 
   // Progress bar
   const fill = document.getElementById('progress-fill');
+  const bar = document.getElementById('progress-bar');
   setTimeout(() => {
     fill.style.width = `${Math.min(100, pct)}%`;
     fill.textContent = `${pct.toFixed(1)}%`;
+    bar.setAttribute('aria-valuenow', Math.round(pct));
   }, 100);
 
   // Charts — wrap each in try/catch so partial data doesn't break everything
