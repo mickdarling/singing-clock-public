@@ -1257,22 +1257,29 @@ def main(args=None):
     print("\nScoring commits...")
     cache = load_score_cache()
     scored = []
+    scored_regex = []  # always holds regex-only scores (for dual-scoring output)
     cache_hits = 0
     for date, message, repo, hash_id in commits:
+        # Always compute regex score for dual-scoring support
+        if hash_id in cache and cache[hash_id]["v"] == SCORE_CACHE_VERSION:
+            rx_total, rx_cats = cache[hash_id]["total"], cache[hash_id]["cats"]
+            cache_hits += 1
+        else:
+            base_total, base_cats = score_commit(message)
+            ds = diffstat_cache.get(hash_id)
+            rx_total, rx_cats = apply_diffstat_weight(base_total, base_cats, ds)
+            cache[hash_id] = {"v": SCORE_CACHE_VERSION, "total": rx_total, "cats": rx_cats}
+
         if enrich_cache is not None and hash_id in enrich_cache and not hash_id.startswith("_"):
             # Enriched: use LLM classification + diffstat weighting
             total, cats = enrich_score(enrich_cache[hash_id])
             ds = diffstat_cache.get(hash_id)
             total, cats = apply_diffstat_weight(total, cats, ds)
-        elif hash_id in cache and cache[hash_id]["v"] == SCORE_CACHE_VERSION:
-            total, cats = cache[hash_id]["total"], cache[hash_id]["cats"]
-            cache_hits += 1
         else:
-            base_total, base_cats = score_commit(message)
-            ds = diffstat_cache.get(hash_id)
-            total, cats = apply_diffstat_weight(base_total, base_cats, ds)
-            cache[hash_id] = {"v": SCORE_CACHE_VERSION, "total": total, "cats": cats}
+            total, cats = rx_total, rx_cats
+
         scored.append((date, total, cats, message, repo, hash_id))
+        scored_regex.append((date, rx_total, rx_cats, message, repo, hash_id))
     save_score_cache(cache)
     print(f"  {cache_hits} cached, {len(commits) - cache_hits} scored fresh")
 
@@ -1300,9 +1307,21 @@ def main(args=None):
         for cat, score in cats.items():
             monthly_cat_scores[key][cat] += score
 
+    # Also aggregate regex-only scores when enrichment is active
+    rx_monthly_capability = defaultdict(float)
+    rx_monthly_cat_scores = defaultdict(lambda: defaultdict(float))
+    if enrich_cache is not None:
+        for date, total, cats, message, repo, _ in scored_regex:
+            key = (date.year, date.month)
+            rx_monthly_capability[key] += total
+            for cat, score in cats.items():
+                rx_monthly_cat_scores[key][cat] += score
+
     cum_commits = 0
     cum_capability = 0
+    rx_cum_capability = 0
     monthly_data = []
+    monthly_regex_data = []
 
     for ym in all_months:
         c = monthly_commits.get(ym, 0)
@@ -1322,11 +1341,32 @@ def main(args=None):
             "cumulative_capability": round(cum_capability),
         })
 
+        # Build regex-only monthly data when enrichment is active
+        if enrich_cache is not None:
+            rx_cap = rx_monthly_capability.get(ym, 0)
+            rx_cum_capability += rx_cap
+            rx_cats = rx_monthly_cat_scores.get(ym, {})
+            rx_soph = compute_sophistication(rx_cats)
+            monthly_regex_data.append({
+                "month": f"{ym[0]}-{ym[1]:02d}",
+                "commits": c,
+                "capability": round(rx_cap),
+                "sophistication": round(rx_soph, 3),
+                "cumulative_commits": cum_commits,
+                "cumulative_capability": round(rx_cum_capability),
+            })
+
     # Smooth sophistication values with EMA
     raw_soph = [m["sophistication"] for m in monthly_data]
     smoothed = smooth_sophistication(raw_soph)
     for i, m in enumerate(monthly_data):
         m["sophistication"] = round(smoothed[i], 3)
+
+    if monthly_regex_data:
+        rx_raw_soph = [m["sophistication"] for m in monthly_regex_data]
+        rx_smoothed = smooth_sophistication(rx_raw_soph)
+        for i, m in enumerate(monthly_regex_data):
+            m["sophistication"] = round(rx_smoothed[i], 3)
 
     # Aggregate by week
     print("Aggregating by week...")
@@ -1387,6 +1427,7 @@ def main(args=None):
     output = {
         "generated": datetime.datetime.now().isoformat(timespec="seconds"),
         "inception_date": INCEPTION_DATE,
+        "scoring_mode": scoring_method,
         "repos_scanned": len(repos),
         "total_commits": len(commits),
         "monthly": monthly_data,
@@ -1396,6 +1437,10 @@ def main(args=None):
         "category_monthly": category_monthly,
         "convergence_history": convergence_history,
     }
+
+    # Include regex-only monthly data for dual-scoring overlays
+    if monthly_regex_data:
+        output["monthly_regex"] = monthly_regex_data
 
     # Write JSON
     with open(OUTPUT_FILE, "w") as f:

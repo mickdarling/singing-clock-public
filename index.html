@@ -308,6 +308,55 @@
     border-top: 1px solid var(--border);
   }
 
+  .scoring-toggles {
+    display: none;
+    max-width: 1400px;
+    margin: 0 auto 1rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.75rem 1.25rem;
+    font-size: 0.8rem;
+    align-items: center;
+    gap: 1.25rem;
+    flex-wrap: wrap;
+  }
+
+  .scoring-toggles.active { display: flex; }
+
+  .scoring-toggles .toggle-label {
+    color: var(--text-dim);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+  }
+
+  .scoring-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .scoring-toggle input[type="checkbox"] {
+    accent-color: var(--teal);
+    width: 16px;
+    height: 16px;
+  }
+
+  .scoring-toggle .swatch {
+    display: inline-block;
+    width: 12px;
+    height: 3px;
+    border-radius: 2px;
+    vertical-align: middle;
+  }
+
+  .scoring-toggle .swatch-enriched { background: var(--teal); }
+  .scoring-toggle .swatch-regex { background: var(--yellow); border-style: dashed; }
+
   .scan-status {
     font-size: 0.75rem;
     color: var(--text-dim);
@@ -691,6 +740,19 @@
 </nav>
 
 <main id="main-content">
+
+<div class="scoring-toggles" id="scoring-toggles" aria-label="Scoring overlay controls">
+  <span class="toggle-label">Scoring overlay:</span>
+  <label class="scoring-toggle">
+    <input type="checkbox" id="toggle-enriched" checked onchange="updateScoringOverlays()">
+    <span class="swatch swatch-enriched"></span> LLM Enriched
+  </label>
+  <label class="scoring-toggle">
+    <input type="checkbox" id="toggle-regex" checked onchange="updateScoringOverlays()">
+    <span class="swatch swatch-regex"></span> Regex Only
+  </label>
+  <span style="color: var(--text-dim); font-size: 0.7rem; margin-left: auto;">Scoring mode: <strong id="scoring-mode-label">--</strong></span>
+</div>
 
 <section class="progress-bar-container" aria-label="Capability progress">
   <h2>Capability Progress</h2>
@@ -1278,7 +1340,7 @@ function renderCommitChart(data) {
     return Math.round(model.L * model.r * sig * (1 - sig));
   }) : [];
 
-  new Chart(document.getElementById('chart-commits'), {
+  chartInstances.commits = new Chart(document.getElementById('chart-commits'), {
     type: 'bar',
     data: {
       labels: allLabels.map(l => l.substring(2)),
@@ -1350,40 +1412,57 @@ function renderCapabilityChart(data) {
     };
   }
 
-  new Chart(document.getElementById('chart-capability'), {
-    type: 'bar',
-    data: {
-      labels: allLabels.map(l => l.substring(2)),
-      datasets: [
-        {
-          label: 'Cumulative Capability',
-          data: actualBars,
-          backgroundColor: 'rgba(78, 205, 196, 0.6)',
-          borderColor: '#4ecdc4',
-          borderWidth: 1,
-        },
-        {
-          label: 'Logistic Fit',
-          data: fittedLine,
-          type: 'line',
-          borderColor: '#58a6ff',
-          borderWidth: 2,
-          pointRadius: 0,
-          tension: 0.4,
-          fill: false,
-        },
-        {
-          label: `Asymptote (L=${model?.L || '?'})`,
-          data: asymptoteLine,
-          type: 'line',
-          borderColor: cssVar('--border'),
-          borderWidth: 1,
-          borderDash: [5, 5],
-          pointRadius: 0,
-          fill: false,
-        },
-      ],
+  const capDatasets = [
+    {
+      label: 'Cumulative Capability',
+      data: actualBars,
+      backgroundColor: 'rgba(78, 205, 196, 0.6)',
+      borderColor: '#4ecdc4',
+      borderWidth: 1,
+      _scoringType: 'enriched',
     },
+    {
+      label: 'Logistic Fit',
+      data: fittedLine,
+      type: 'line',
+      borderColor: '#58a6ff',
+      borderWidth: 2,
+      pointRadius: 0,
+      tension: 0.4,
+      fill: false,
+    },
+    {
+      label: `Asymptote (L=${model?.L || '?'})`,
+      data: asymptoteLine,
+      type: 'line',
+      borderColor: cssVar('--border'),
+      borderWidth: 1,
+      borderDash: [5, 5],
+      pointRadius: 0,
+      fill: false,
+    },
+  ];
+
+  // Add regex overlay if dual-scoring data is available
+  if (data.monthly_regex) {
+    const rx = data.monthly_regex;
+    capDatasets.push({
+      label: 'Regex Cumulative Capability',
+      data: [...rx.map(m => m.cumulative_capability), ...projection.map(() => null)],
+      type: 'line',
+      borderColor: cssVar('--yellow'),
+      borderWidth: 2,
+      borderDash: [6, 4],
+      pointRadius: 0,
+      tension: 0.4,
+      fill: false,
+      _scoringType: 'regex',
+    });
+  }
+
+  chartInstances.capability = new Chart(document.getElementById('chart-capability'), {
+    type: 'bar',
+    data: { labels: allLabels.map(l => l.substring(2)), datasets: capDatasets },
     options: {
       ...CHART_DEFAULTS,
       plugins: {
@@ -1420,40 +1499,58 @@ function renderSophisticationChart(data) {
 
   const annotations = makeMilestoneAnnotations(data, epochMonth, extendedLabels.length);
 
-  new Chart(document.getElementById('chart-sophistication'), {
-    type: 'line',
-    data: {
-      labels: extendedLabels.map(l => l.substring(2)),
-      datasets: [
-        {
-          label: 'Sophistication %',
-          data: actualPadded,
-          borderColor: '#b380ff',
-          backgroundColor: 'rgba(179, 128, 255, 0.2)',
-          borderWidth: 2,
-          pointRadius: 4,
-          fill: true,
-        },
-        {
-          label: 'Linear Trend',
-          data: trendline,
-          borderColor: '#ffd93d',
-          borderWidth: 2,
-          borderDash: [5, 5],
-          pointRadius: 0,
-          fill: false,
-        },
-        {
-          label: '100% Threshold',
-          data: extendedLabels.map(() => 100),
-          borderColor: cssVar('--border'),
-          borderWidth: 1,
-          borderDash: [3, 3],
-          pointRadius: 0,
-          fill: false,
-        },
-      ],
+  const sophDatasets = [
+    {
+      label: 'Sophistication %',
+      data: actualPadded,
+      borderColor: '#b380ff',
+      backgroundColor: 'rgba(179, 128, 255, 0.2)',
+      borderWidth: 2,
+      pointRadius: 4,
+      fill: true,
+      _scoringType: 'enriched',
     },
+    {
+      label: 'Linear Trend',
+      data: trendline,
+      borderColor: '#ffd93d',
+      borderWidth: 2,
+      borderDash: [5, 5],
+      pointRadius: 0,
+      fill: false,
+    },
+    {
+      label: '100% Threshold',
+      data: extendedLabels.map(() => 100),
+      borderColor: cssVar('--border'),
+      borderWidth: 1,
+      borderDash: [3, 3],
+      pointRadius: 0,
+      fill: false,
+    },
+  ];
+
+  // Add regex overlay if dual-scoring data is available
+  if (data.monthly_regex) {
+    const rx = data.monthly_regex;
+    const rxPadded = [...rx.map(m => Math.round(m.sophistication * 100)),
+                      ...Array(extendedLabels.length - rx.length).fill(null)];
+    sophDatasets.push({
+      label: 'Regex Sophistication %',
+      data: rxPadded,
+      borderColor: cssVar('--yellow'),
+      borderWidth: 2,
+      borderDash: [6, 4],
+      pointRadius: 3,
+      pointBackgroundColor: cssVar('--yellow'),
+      fill: false,
+      _scoringType: 'regex',
+    });
+  }
+
+  chartInstances.sophistication = new Chart(document.getElementById('chart-sophistication'), {
+    type: 'line',
+    data: { labels: extendedLabels.map(l => l.substring(2)), datasets: sophDatasets },
     options: {
       ...CHART_DEFAULTS,
       scales: {
@@ -1518,7 +1615,7 @@ function renderConvergenceChart(data) {
     label: { display: true, content: '95%', position: 'start', backgroundColor: 'transparent', color: '#4ecdc488', font: { size: 9 } },
   };
 
-  new Chart(document.getElementById('chart-convergence'), {
+  chartInstances.convergence = new Chart(document.getElementById('chart-convergence'), {
     type: 'line',
     data: {
       labels: allLabels.map(l => l.substring(2)),
@@ -1692,6 +1789,31 @@ function renderDriftChart(data) {
   });
 }
 
+// ─── Dual-Scoring Overlay ────────────────────────────────────────────────
+let chartInstances = {};
+
+function hasDualScoring() {
+  return DATA && DATA.monthly_regex && DATA.monthly_regex.length > 0;
+}
+
+function updateScoringOverlays() {
+  if (!hasDualScoring()) return;
+  const showEnriched = document.getElementById('toggle-enriched').checked;
+  const showRegex = document.getElementById('toggle-regex').checked;
+
+  for (const [key, chart] of Object.entries(chartInstances)) {
+    if (!chart) continue;
+    for (const ds of chart.data.datasets) {
+      if (ds._scoringType === 'enriched') {
+        ds.hidden = !showEnriched;
+      } else if (ds._scoringType === 'regex') {
+        ds.hidden = !showRegex;
+      }
+    }
+    chart.update();
+  }
+}
+
 // ─── Init ───────────────────────────────────────────────────────────────
 async function init() {
   DATA = await loadData();
@@ -1735,6 +1857,14 @@ async function init() {
   try { renderSophisticationChart(data); } catch (e) { console.warn('Sophistication chart error:', e); }
   try { renderConvergenceChart(data); } catch (e) { console.warn('Convergence chart error:', e); }
 
+  // Show scoring toggles if dual-scoring data is present
+  if (hasDualScoring()) {
+    document.getElementById('scoring-toggles').classList.add('active');
+    const modeLabel = document.getElementById('scoring-mode-label');
+    modeLabel.textContent = data.scoring_mode || 'enriched';
+    modeLabel.style.color = cssVar('--teal');
+  }
+
   // Footer
   const footer = document.getElementById('footer');
   const parts = [];
@@ -1742,6 +1872,7 @@ async function init() {
   if (data.repos_scanned) parts.push(`${data.repos_scanned} repos`);
   if (data.total_commits) parts.push(`${data.total_commits.toLocaleString()} commits`);
   if (data.inception_date) parts.push(`Inception: ${data.inception_date}`);
+  if (data.scoring_mode) parts.push(`Scoring: ${data.scoring_mode}`);
   footer.textContent = parts.join(' | ') || 'No scan data available';
 
   // Show warning banner for partial data
