@@ -1,0 +1,32 @@
+{
+  "name": "singing-clock",
+  "version": "1.0.0",
+  "description": "Convergence countdown dashboard for AI-assisted software projects",
+  "bin": {
+    "singing-clock": "bin/singing-clock.js"
+  },
+  "keywords": [
+    "ai",
+    "convergence",
+    "dashboard",
+    "git",
+    "metrics",
+    "scoring"
+  ],
+  "license": "AGPL-3.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mickdarling/singing-clock-public.git"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "files": [
+    "bin/",
+    "scan.py",
+    "server.py",
+    "index.html",
+    "config.example.json",
+    "LICENSE"
+  ]
+}

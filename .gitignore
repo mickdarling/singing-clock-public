@@ -6,6 +6,7 @@ enrich_cache.json
 score_snapshots.json
 history.json
 __pycache__/
+node_modules/
 .DS_Store
 .local/
 .dollhousemcp/
