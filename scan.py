@@ -1199,6 +1199,165 @@ def enrich_commits(commits, enrich_cache, model_name):
     return enriched_count, fallback_count
 
 
+# ─── Issue Impact Scoring ────────────────────────────────────────────────
+
+def discover_open_issues(repos):
+    """Use gh CLI to list open issues across all scanned repos.
+
+    Returns list of dicts: {repo, number, title, body, labels}.
+    Silently skips repos where gh fails (not a GitHub repo, no access, etc.).
+    """
+    issues = []
+    for repo_path in repos:
+        repo_name = os.path.basename(repo_path)
+        try:
+            # Try to get the GitHub remote URL
+            result = subprocess.run(
+                ["git", "-C", repo_path, "remote", "get-url", "origin"],
+                capture_output=True, text=True, timeout=10,
+            )
+            remote = result.stdout.strip()
+            if not remote or "github.com" not in remote:
+                continue
+
+            # Extract owner/repo from remote URL
+            # Handles both https://github.com/owner/repo.git and git@github.com:owner/repo.git
+            gh_repo = None
+            if "github.com/" in remote:
+                gh_repo = remote.split("github.com/")[-1]
+            elif "github.com:" in remote:
+                gh_repo = remote.split("github.com:")[-1]
+            if gh_repo:
+                gh_repo = gh_repo.rstrip("/").removesuffix(".git")
+
+            if not gh_repo:
+                continue
+
+            # Fetch open issues
+            result = subprocess.run(
+                ["gh", "issue", "list", "--repo", gh_repo, "--state", "open",
+                 "--json", "number,title,body,labels", "--limit", "100"],
+                capture_output=True, text=True, timeout=30,
+            )
+            if result.returncode != 0:
+                continue
+
+            repo_issues = json.loads(result.stdout)
+            for issue in repo_issues:
+                issues.append({
+                    "repo": repo_name,
+                    "gh_repo": gh_repo,
+                    "number": issue.get("number"),
+                    "title": issue.get("title", ""),
+                    "body": issue.get("body", ""),
+                    "labels": [l.get("name", "") for l in issue.get("labels", [])],
+                })
+            if repo_issues:
+                print(f"  {repo_name}: {len(repo_issues)} open issues")
+        except (subprocess.TimeoutExpired, Exception) as e:
+            continue  # silently skip — many repos won't have gh access
+
+    return issues
+
+
+def score_issue(title, body=""):
+    """Score an issue's title + body against the CATEGORIES rubric.
+
+    Returns (total, cats) same as score_commit().
+    """
+    text = f"{title} {body}".lower()
+    scores = {}
+    total = 0
+
+    for cat_name, cat in CATEGORIES.items():
+        hits = sum(1 for p in cat["compiled"] if p.search(text))
+        if hits > 0:
+            score = cat["weight"] * min(hits, 3)
+            scores[cat_name] = score
+            total += score
+
+    if total == 0:
+        total = 0.5
+
+    return total, scores
+
+
+def estimate_convergence_impact(projected_score, models):
+    """Estimate how many days closer to convergence an issue would bring.
+
+    Uses the capability logistic model: adding projected_score to current
+    capability shifts the curve, bringing the 95% date closer.
+    """
+    cap = models.get("capability", {})
+    L = cap.get("L", 0)
+    r = cap.get("r", 0)
+    t_mid = cap.get("t_mid", 0)
+
+    if L <= 0 or r <= 0:
+        return 0.0
+
+    # Current capability and time
+    # The sensitivity of the logistic curve: d(cap)/d(score_added) ≈ r * pct * (1 - pct)
+    # Near saturation (high pct), each point has less impact
+    pct = cap.get("pct_now", 0) / 100.0
+    pct = max(0.01, min(0.99, pct))
+
+    # Approximate: adding `projected_score` to cumulative capability
+    # shifts the effective time position by projected_score / (L * r * pct * (1-pct))
+    # Convert time shift (in month-units) to days
+    sensitivity = L * r * pct * (1 - pct)
+    if sensitivity < 1:
+        sensitivity = 1
+    time_shift_months = projected_score / sensitivity
+    days_impact = time_shift_months * 30.44
+
+    return round(-days_impact, 1)  # negative = closer to convergence
+
+
+def score_all_issues(repos, models, enrich_cache=None, enrich_model=None):
+    """Discover and score open issues across scanned repos.
+
+    Returns list of scored issues sorted by convergence impact.
+    """
+    print("\nDiscovering open issues...")
+    issues = discover_open_issues(repos)
+
+    if not issues:
+        print("  No open issues found (gh CLI may not be available)")
+        return []
+
+    print(f"  {len(issues)} open issues found across repos")
+    print("  Scoring issues...")
+
+    scored_issues = []
+    for issue in issues:
+        total, cats = score_issue(issue["title"], issue.get("body", ""))
+
+        impact = estimate_convergence_impact(total, models)
+
+        scored_issues.append({
+            "repo": issue["repo"],
+            "number": issue["number"],
+            "title": issue["title"],
+            "labels": issue.get("labels", []),
+            "categories": cats,
+            "projected_score": round(total, 1),
+            "convergence_impact_days": impact,
+        })
+
+    # Sort by impact (most negative = most impactful)
+    scored_issues.sort(key=lambda x: x["convergence_impact_days"])
+
+    # Add rank
+    for i, issue in enumerate(scored_issues):
+        issue["priority_rank"] = i + 1
+
+    print(f"  Top issue: #{scored_issues[0]['number']} ({scored_issues[0]['title'][:50]}) "
+          f"= {scored_issues[0]['convergence_impact_days']} days")
+
+    return scored_issues
+
+
 # ─── Main ────────────────────────────────────────────────────────────────
 
 def main(args=None):
@@ -1441,6 +1600,11 @@ def main(args=None):
     # Include regex-only monthly data for dual-scoring overlays
     if monthly_regex_data:
         output["monthly_regex"] = monthly_regex_data
+
+    # Score open issues for convergence impact
+    issue_scores = score_all_issues(repos, models, enrich_cache, args.get("enrich_model"))
+    if issue_scores:
+        output["issue_scores"] = issue_scores
 
     # Write JSON
     with open(OUTPUT_FILE, "w") as f:

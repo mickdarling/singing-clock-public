@@ -357,6 +357,50 @@
   .scoring-toggle .swatch-enriched { background: var(--teal); }
   .scoring-toggle .swatch-regex { background: var(--yellow); border-style: dashed; }
 
+  .issue-impact-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+  }
+
+  .issue-impact-table th {
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+    color: var(--text-dim);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+
+  .issue-impact-table td {
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    vertical-align: top;
+  }
+
+  .issue-impact-table tr:last-child td { border-bottom: none; }
+
+  .issue-impact-table .rank { color: var(--text-dim); font-weight: 700; width: 2rem; text-align: center; }
+  .issue-impact-table .impact { font-weight: 700; white-space: nowrap; }
+  .issue-impact-table .impact.positive { color: var(--teal); }
+  .issue-impact-table .impact.neutral { color: var(--text-dim); }
+  .issue-impact-table .score { color: var(--yellow); white-space: nowrap; }
+  .issue-impact-table .issue-title { max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .issue-impact-table .repo-name { color: var(--text-dim); font-size: 0.7rem; }
+  .issue-impact-table .cats { font-size: 0.7rem; color: var(--text-dim); }
+  .issue-impact-table .cat-tag {
+    display: inline-block;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 0.1rem 0.35rem;
+    margin: 0.1rem;
+    font-size: 0.65rem;
+  }
+
   .scan-status {
     font-size: 0.75rem;
     color: var(--text-dim);
@@ -797,6 +841,14 @@
     <h2>Convergence: Effort vs. Capability</h2>
     <div class="chart-subtitle">Commit rate derivative vs. capability derivative — crossing = graduation</div>
     <div class="chart-container"><canvas id="chart-convergence" role="img" aria-label="Convergence chart comparing effort and capability derivatives"></canvas></div>
+  </div>
+</section>
+
+<section class="issue-impact-section" id="issue-impact-section" style="display:none;" aria-label="Issue convergence impact">
+  <div class="chart-card" style="max-width:1400px; margin:0 auto 1.5rem;">
+    <h2>Open Issues by Convergence Impact</h2>
+    <div class="chart-subtitle">Ranked by estimated days shifted toward graduation if completed</div>
+    <div id="issue-impact-table-wrapper" style="margin-top:1rem; overflow-x:auto;"></div>
   </div>
 </section>
 
@@ -1789,6 +1841,42 @@ function renderDriftChart(data) {
   });
 }
 
+// ─── Issue Impact Table ─────────────────────────────────────────────────
+function renderIssueImpactTable(data) {
+  const issues = data.issue_scores;
+  if (!issues || issues.length === 0) return;
+
+  document.getElementById('issue-impact-section').style.display = 'block';
+  const wrapper = document.getElementById('issue-impact-table-wrapper');
+
+  const rows = issues.map(issue => {
+    const impactClass = issue.convergence_impact_days < 0 ? 'positive' : 'neutral';
+    const impactText = issue.convergence_impact_days < 0
+      ? `${issue.convergence_impact_days}d`
+      : issue.convergence_impact_days === 0 ? '0d' : `+${issue.convergence_impact_days}d`;
+
+    const catTags = Object.keys(issue.categories || {})
+      .map(c => `<span class="cat-tag">${c}</span>`)
+      .join('');
+
+    return `<tr>
+      <td class="rank">${issue.priority_rank}</td>
+      <td class="impact ${impactClass}">${impactText}</td>
+      <td class="score">${issue.projected_score}</td>
+      <td class="issue-title" title="${escapeHtml(issue.title)}">${escapeHtml(issue.title)}</td>
+      <td class="repo-name">${escapeHtml(issue.repo)}#${issue.number}</td>
+      <td class="cats">${catTags}</td>
+    </tr>`;
+  }).join('');
+
+  wrapper.innerHTML = `<table class="issue-impact-table">
+    <thead><tr>
+      <th>#</th><th>Impact</th><th>Score</th><th>Issue</th><th>Repo</th><th>Categories</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
 // ─── Dual-Scoring Overlay ────────────────────────────────────────────────
 let chartInstances = {};
 
@@ -1856,6 +1944,7 @@ async function init() {
   try { renderCapabilityChart(data); } catch (e) { console.warn('Capability chart error:', e); }
   try { renderSophisticationChart(data); } catch (e) { console.warn('Sophistication chart error:', e); }
   try { renderConvergenceChart(data); } catch (e) { console.warn('Convergence chart error:', e); }
+  try { renderIssueImpactTable(data); } catch (e) { console.warn('Issue impact table error:', e); }
 
   // Show scoring toggles if dual-scoring data is present
   if (hasDualScoring()) {
