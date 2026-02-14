@@ -262,6 +262,108 @@
     word-break: break-word;
   }
 
+  /* Onboarding / Empty State */
+  .onboarding {
+    max-width: 700px;
+    margin: 0 auto;
+    text-align: center;
+    padding: 2rem 1rem 3rem;
+  }
+
+  .onboarding h2 {
+    font-size: 1.6rem;
+    color: var(--teal);
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+  }
+
+  .onboarding .tagline {
+    color: var(--text-dim);
+    font-size: 0.95rem;
+    margin-bottom: 2.5rem;
+  }
+
+  .onboarding-steps {
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    margin-bottom: 2.5rem;
+  }
+
+  .onboarding-step {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+  }
+
+  .step-number {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--teal);
+    color: var(--bg);
+    font-weight: 700;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 2px;
+  }
+
+  .step-content h3 {
+    font-size: 0.95rem;
+    margin-bottom: 0.35rem;
+    color: var(--text);
+  }
+
+  .step-content p {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+
+  .step-content code {
+    background: var(--bg);
+    padding: 0.15em 0.4em;
+    border-radius: 3px;
+    font-size: 0.8rem;
+    color: var(--yellow);
+  }
+
+  .onboarding-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .onboarding-actions .btn-primary {
+    font-size: 1rem;
+    padding: 0.75rem 2rem;
+  }
+
+  .onboarding-status {
+    margin-top: 1.5rem;
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    min-height: 1.2em;
+  }
+
+  .fade-in {
+    animation: fadeIn 0.4s ease-in;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
   @media (max-width: 900px) {
     .charts { grid-template-columns: 1fr; }
     .countdown { font-size: 3rem; }
@@ -571,15 +673,123 @@ async function loadData() {
     }
     return data;
   } catch (e) {
-    document.querySelector('.hero').innerHTML = `
-      <div class="error">
-        <p>Could not load data.json</p>
-        <p style="font-size: 0.8rem; margin-top: 1rem;">
-          Run <code>python3 scan.py</code> first, then:<br>
-          <code>python3 server.py</code> and open <code>http://localhost:8080</code>
-        </p>
-      </div>`;
+    showOnboarding();
     throw e;
+  }
+}
+
+function showOnboarding() {
+  // Hide dashboard sections that have no data
+  document.querySelector('.controls').style.display = 'none';
+  document.querySelector('.progress-bar-container').style.display = 'none';
+  document.querySelector('.charts').style.display = 'none';
+  document.getElementById('footer').style.display = 'none';
+  const drift = document.getElementById('drift-section');
+  if (drift) drift.style.display = 'none';
+
+  // Replace hero with onboarding
+  document.querySelector('.hero').innerHTML = `
+    <div class="onboarding fade-in">
+      <h2>Welcome to Singing Clock</h2>
+      <p class="tagline">Convergence countdown dashboard for AI-assisted software projects.<br>
+        Scan your repos, track capability growth, and predict when your project reaches self-sufficiency.</p>
+
+      <div class="onboarding-steps">
+        <div class="onboarding-step">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <h3>Configure your repos</h3>
+            <p>Copy <code>config.example.json</code> to <code>config.json</code> and add the paths to
+              your git repositories in the <code>scan_dirs</code> array.</p>
+          </div>
+        </div>
+        <div class="onboarding-step">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <h3>Run the scanner</h3>
+            <p>Run <code>python3 scan.py</code> to analyze your commits and generate scoring data.
+              Add <code>--enrich</code> for AI-powered classification (requires ANTHROPIC_API_KEY).</p>
+          </div>
+        </div>
+        <div class="onboarding-step">
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <h3>Launch the dashboard</h3>
+            <p>Start the server with <code>python3 server.py</code> and open
+              <code>http://localhost:8080</code>. The dashboard will load automatically.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="onboarding-actions">
+        <button class="btn-primary btn" onclick="attemptRescan()">Scan Now</button>
+        <button class="btn" onclick="retryLoad()">Refresh</button>
+      </div>
+      <div class="onboarding-status" id="onboarding-status"></div>
+    </div>`;
+}
+
+async function attemptRescan() {
+  const status = document.getElementById('onboarding-status');
+  status.textContent = 'Starting scan...';
+
+  try {
+    const resp = await fetch('/api/scan', { method: 'POST' });
+    if (!resp.ok) {
+      status.textContent = 'Server not running. Start with: python3 server.py';
+      status.style.color = 'var(--red)';
+      return;
+    }
+    status.textContent = 'Scanning repos... this may take a moment.';
+    status.style.color = 'var(--yellow)';
+
+    // Poll for completion
+    const startTime = Date.now();
+    const interval = setInterval(async () => {
+      try {
+        const check = await fetch('/api/status');
+        if (check.ok) {
+          const st = await check.json();
+          if (st.status === 'idle') {
+            clearInterval(interval);
+            status.textContent = 'Scan complete! Loading dashboard...';
+            status.style.color = 'var(--teal)';
+            setTimeout(() => location.reload(), 500);
+            return;
+          }
+        }
+      } catch (_) { /* keep polling */ }
+
+      if (Date.now() - startTime > 300000) {
+        clearInterval(interval);
+        status.textContent = 'Scan timed out. Try running python3 scan.py manually.';
+        status.style.color = 'var(--red)';
+      }
+    }, 2000);
+  } catch (_) {
+    status.textContent = 'Could not reach server. Start with: python3 server.py';
+    status.style.color = 'var(--red)';
+  }
+}
+
+async function retryLoad() {
+  const status = document.getElementById('onboarding-status');
+  status.textContent = 'Checking for data...';
+  status.style.color = 'var(--text-dim)';
+
+  try {
+    const resp = await fetch('data.json');
+    if (resp.ok) {
+      status.textContent = 'Data found! Loading dashboard...';
+      status.style.color = 'var(--teal)';
+      setTimeout(() => location.reload(), 300);
+    } else {
+      status.textContent = 'No data yet. Run python3 scan.py to generate it.';
+      status.style.color = 'var(--yellow)';
+    }
+  } catch (_) {
+    status.textContent = 'No data yet. Run python3 scan.py to generate it.';
+    status.style.color = 'var(--yellow)';
   }
 }
 
