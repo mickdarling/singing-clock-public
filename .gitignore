@@ -1,4 +1,5 @@
 data.json
+config.json
 score_cache.json
 diffstat_cache.json
 enrich_cache.json

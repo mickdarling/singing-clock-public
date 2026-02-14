@@ -27,6 +27,10 @@ from pathlib import Path
 
 # ─── Configuration ───────────────────────────────────────────────────────
 
+CONFIG_FILE = Path(__file__).parent / "config.json"
+CONFIG_EXAMPLE = Path(__file__).parent / "config.example.json"
+
+# Defaults (used when no config.json exists)
 INCEPTION_DATE = "2025-06-30"
 DEVELOPER_DIR = Path.home() / "Developer"
 
@@ -90,6 +94,100 @@ MULTIPLIER_FLOOR = 0.4
 MULTIPLIER_CEILING = 2.0
 TEST_LINES_THRESHOLD = 10     # test lines added to trigger safety bonus
 TEST_SAFETY_BONUS = 2
+
+
+# ─── Config File Loading ─────────────────────────────────────────────────
+
+def load_config():
+    """Load configuration from config.json, falling back to built-in defaults.
+
+    Returns the parsed config dict, or None if no config file exists.
+    On parse error, prints a warning and returns None (uses defaults).
+    """
+    if not CONFIG_FILE.exists():
+        return None
+    try:
+        data = json.loads(CONFIG_FILE.read_text())
+        if not isinstance(data, dict):
+            print(f"  Warning: config.json is not a JSON object, using defaults")
+            return None
+        return data
+    except (json.JSONDecodeError, OSError) as e:
+        print(f"  Warning: config.json could not be loaded ({e}), using defaults")
+        return None
+
+
+def apply_config(config):
+    """Apply a loaded config dict to the module-level constants.
+
+    Only overrides values that are present in the config. Missing keys
+    keep the built-in defaults. This function mutates module globals.
+    """
+    global INCEPTION_DATE, SCAN_DIRS, BROAD_SCAN_DIR, BROAD_SCAN_MAX_DEPTH
+    global SKIP_PATTERNS, CATEGORIES, HIGH_LEVEL_CATS, LOW_LEVEL_CATS
+    global LARGE_SOURCE_THRESHOLD, MEDIUM_SOURCE_THRESHOLD
+    global LARGE_SOURCE_BONUS, MEDIUM_SOURCE_BONUS
+    global MAJOR_NEW_FILES_THRESHOLD, MINOR_NEW_FILES_THRESHOLD
+    global MAJOR_NEW_FILES_BONUS, MINOR_NEW_FILES_BONUS
+    global CONFIG_ONLY_MULTIPLIER, DELETION_HEAVY_THRESHOLD
+    global DELETION_HEAVY_MULTIPLIER, MULTIPLIER_FLOOR, MULTIPLIER_CEILING
+    global TEST_LINES_THRESHOLD, TEST_SAFETY_BONUS
+
+    if not config:
+        return
+
+    # Goal settings
+    goal = config.get("goal", {})
+    if "inception_date" in goal:
+        INCEPTION_DATE = goal["inception_date"]
+
+    # Repo settings
+    repos = config.get("repos", {})
+    if "scan_dirs" in repos:
+        SCAN_DIRS = [Path(os.path.expanduser(d)) for d in repos["scan_dirs"]]
+    broad = repos.get("broad_scan", {})
+    if "root" in broad:
+        BROAD_SCAN_DIR = Path(os.path.expanduser(broad["root"]))
+    if "max_depth" in broad:
+        BROAD_SCAN_MAX_DEPTH = int(broad["max_depth"])
+    if "skip_patterns" in repos:
+        SKIP_PATTERNS = repos["skip_patterns"]
+
+    # Scoring thresholds
+    scoring = config.get("scoring", {})
+    if scoring:
+        LARGE_SOURCE_THRESHOLD = scoring.get("large_source_threshold", LARGE_SOURCE_THRESHOLD)
+        MEDIUM_SOURCE_THRESHOLD = scoring.get("medium_source_threshold", MEDIUM_SOURCE_THRESHOLD)
+        LARGE_SOURCE_BONUS = scoring.get("large_source_bonus", LARGE_SOURCE_BONUS)
+        MEDIUM_SOURCE_BONUS = scoring.get("medium_source_bonus", MEDIUM_SOURCE_BONUS)
+        MAJOR_NEW_FILES_THRESHOLD = scoring.get("major_new_files_threshold", MAJOR_NEW_FILES_THRESHOLD)
+        MINOR_NEW_FILES_THRESHOLD = scoring.get("minor_new_files_threshold", MINOR_NEW_FILES_THRESHOLD)
+        MAJOR_NEW_FILES_BONUS = scoring.get("major_new_files_bonus", MAJOR_NEW_FILES_BONUS)
+        MINOR_NEW_FILES_BONUS = scoring.get("minor_new_files_bonus", MINOR_NEW_FILES_BONUS)
+        CONFIG_ONLY_MULTIPLIER = scoring.get("config_only_multiplier", CONFIG_ONLY_MULTIPLIER)
+        DELETION_HEAVY_THRESHOLD = scoring.get("deletion_heavy_threshold", DELETION_HEAVY_THRESHOLD)
+        DELETION_HEAVY_MULTIPLIER = scoring.get("deletion_heavy_multiplier", DELETION_HEAVY_MULTIPLIER)
+        MULTIPLIER_FLOOR = scoring.get("multiplier_floor", MULTIPLIER_FLOOR)
+        MULTIPLIER_CEILING = scoring.get("multiplier_ceiling", MULTIPLIER_CEILING)
+        TEST_LINES_THRESHOLD = scoring.get("test_lines_threshold", TEST_LINES_THRESHOLD)
+        TEST_SAFETY_BONUS = scoring.get("test_safety_bonus", TEST_SAFETY_BONUS)
+
+    # Rubric (category definitions)
+    rubric = config.get("rubric", {})
+    if "categories" in rubric:
+        CATEGORIES.clear()
+        for cat_name, cat_def in rubric["categories"].items():
+            CATEGORIES[cat_name] = {
+                "weight": cat_def.get("weight", 1),
+                "patterns": cat_def.get("patterns", []),
+            }
+        # Recompile regex patterns
+        for cat in CATEGORIES.values():
+            cat["compiled"] = [re.compile(p) for p in cat["patterns"]]
+    if "high_level_categories" in rubric:
+        HIGH_LEVEL_CATS = set(rubric["high_level_categories"])
+    if "low_level_categories" in rubric:
+        LOW_LEVEL_CATS = set(rubric["low_level_categories"])
 
 
 # ─── Capability Scoring Rubric ───────────────────────────────────────────
@@ -1038,6 +1136,17 @@ def main(args=None):
     print("=" * 60)
     print("Singing Clock - Scanning repositories...")
     print("=" * 60)
+
+    # Load configuration
+    config = load_config()
+    if config:
+        print(f"\n  Loaded configuration from {CONFIG_FILE.name}")
+        apply_config(config)
+    elif not CONFIG_FILE.exists() and CONFIG_EXAMPLE.exists():
+        print(f"\n  No config.json found. Using built-in defaults.")
+        print(f"  To customize, copy config.example.json to config.json:")
+        print(f"    cp config.example.json config.json")
+        print(f"  Then edit config.json with your repo paths and preferences.")
 
     # Discover repos
     print("\nDiscovering repositories...")
