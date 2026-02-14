@@ -232,6 +232,36 @@
     font-size: 1.2rem;
   }
 
+  .scan-error-details {
+    max-width: 800px;
+    margin: 1rem auto 0;
+    text-align: left;
+  }
+
+  .scan-error-details summary {
+    cursor: pointer;
+    color: var(--text-dim);
+    font-size: 0.75rem;
+    text-align: center;
+    padding: 0.5rem;
+  }
+
+  .scan-error-details summary:hover { color: var(--text); }
+
+  .scan-log-output {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem;
+    margin-top: 0.5rem;
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    max-height: 300px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
   @media (max-width: 900px) {
     .charts { grid-template-columns: 1fr; }
     .countdown { font-size: 3rem; }
@@ -443,21 +473,35 @@ async function pollForCompletion() {
 
   const interval = setInterval(async () => {
     try {
-      // Check if data.json has been updated
-      const resp = await fetch('data.json?t=' + Date.now());
-      if (resp.ok) {
-        const newData = await resp.json();
-        if (newData.generated !== origGenerated) {
-          clearInterval(interval);
-          status.className = 'scan-status done';
-          status.textContent = `Scan complete! Updated ${new Date(newData.generated).toLocaleTimeString()}`;
-          btn.disabled = false;
-          // Reload page to show new data
-          setTimeout(() => location.reload(), 500);
-          return;
+      const statusResp = await fetch('/api/status');
+      if (statusResp.ok) {
+        const st = await statusResp.json();
+
+        // Scan finished — check result
+        if (!st.scan_running) {
+          // Check if data.json was updated
+          const dataResp = await fetch('data.json?t=' + Date.now());
+          if (dataResp.ok) {
+            const newData = await dataResp.json();
+            if (newData.generated !== origGenerated) {
+              clearInterval(interval);
+              status.className = 'scan-status done';
+              status.textContent = `Scan complete! Updated ${new Date(newData.generated).toLocaleTimeString()}`;
+              btn.disabled = false;
+              setTimeout(() => location.reload(), 500);
+              return;
+            }
+          }
+
+          // Scan stopped but data didn't update — likely a failure
+          if (st.last_scan_success === false) {
+            clearInterval(interval);
+            await showScanFailure(status, btn);
+            return;
+          }
         }
       }
-    } catch (e) { /* ignore */ }
+    } catch (e) { /* keep polling */ }
 
     // Timeout after 5 minutes
     if (Date.now() - startTime > 300000) {
@@ -465,16 +509,67 @@ async function pollForCompletion() {
       status.className = 'scan-status error';
       status.textContent = 'Scan timed out';
       btn.disabled = false;
+      await showScanLogs();
     }
   }, 2000);
 }
 
+async function showScanFailure(statusEl, btn) {
+  statusEl.className = 'scan-status error';
+  statusEl.textContent = 'Scan failed.';
+  btn.disabled = false;
+  btn.textContent = 'Retry Scan';
+  await showScanLogs();
+}
+
+async function showScanLogs() {
+  try {
+    const resp = await fetch('/api/scan-logs');
+    if (!resp.ok) return;
+    const logs = await resp.json();
+    if (!logs.output) return;
+
+    // Remove existing log details if any
+    const existing = document.querySelector('.scan-error-details');
+    if (existing) existing.remove();
+
+    const details = document.createElement('details');
+    details.className = 'scan-error-details';
+    details.innerHTML = `<summary>View scan logs</summary>` +
+      `<pre class="scan-log-output">${escapeHtml(logs.output)}</pre>`;
+
+    const controls = document.querySelector('.controls');
+    controls.parentNode.insertBefore(details, controls.nextSibling);
+  } catch (_) { /* no logs available */ }
+}
+
+function escapeHtml(str) {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 // ─── Data Loading ───────────────────────────────────────────────────────
+function validateData(data) {
+  const issues = [];
+  if (!data || typeof data !== 'object') return ['data.json is not a valid object'];
+  if (!data.generated) issues.push('missing "generated" timestamp');
+  if (!data.months || !Array.isArray(data.months)) issues.push('missing "months" array');
+  if (!data.current || typeof data.current !== 'object') issues.push('missing "current" stats');
+  return issues;
+}
+
 async function loadData() {
   try {
     const resp = await fetch('data.json');
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    return await resp.json();
+    const data = await resp.json();
+    const issues = validateData(data);
+    if (issues.length > 0) {
+      console.warn('data.json validation:', issues);
+      // Partial data — still return it so we can render what we have
+      data._partial = true;
+      data._validationIssues = issues;
+    }
+    return data;
   } catch (e) {
     document.querySelector('.hero').innerHTML = `
       <div class="error">
@@ -984,16 +1079,26 @@ async function init() {
     fill.textContent = `${pct.toFixed(1)}%`;
   }, 100);
 
-  // Charts
-  renderDriftChart(data);
-  renderCommitChart(data);
-  renderCapabilityChart(data);
-  renderSophisticationChart(data);
-  renderConvergenceChart(data);
+  // Charts — wrap each in try/catch so partial data doesn't break everything
+  try { renderDriftChart(data); } catch (e) { console.warn('Drift chart error:', e); }
+  try { renderCommitChart(data); } catch (e) { console.warn('Commit chart error:', e); }
+  try { renderCapabilityChart(data); } catch (e) { console.warn('Capability chart error:', e); }
+  try { renderSophisticationChart(data); } catch (e) { console.warn('Sophistication chart error:', e); }
+  try { renderConvergenceChart(data); } catch (e) { console.warn('Convergence chart error:', e); }
 
   // Footer
-  document.getElementById('footer').textContent =
-    `Last scan: ${data.generated} | ${data.repos_scanned} repos | ${data.total_commits.toLocaleString()} commits | Inception: ${data.inception_date}`;
+  const footer = document.getElementById('footer');
+  const parts = [];
+  if (data.generated) parts.push(`Last scan: ${data.generated}`);
+  if (data.repos_scanned) parts.push(`${data.repos_scanned} repos`);
+  if (data.total_commits) parts.push(`${data.total_commits.toLocaleString()} commits`);
+  if (data.inception_date) parts.push(`Inception: ${data.inception_date}`);
+  footer.textContent = parts.join(' | ') || 'No scan data available';
+
+  // Show warning banner for partial data
+  if (data._partial) {
+    footer.textContent += ' (partial data — some fields missing)';
+  }
 }
 
 init();
