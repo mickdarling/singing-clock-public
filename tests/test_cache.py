@@ -21,7 +21,7 @@ class TestScoreCacheIO(unittest.TestCase):
             self.assertEqual(result, {})
 
     def test_load_valid_cache(self):
-        data = {"_v": 3, "abc123": {"agents": 6}}
+        data = {"_v": 3, "abc123": {"v": 3, "total": 6, "cats": {"agents": 6}}}
         with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(data, f)
             f.flush()
@@ -65,7 +65,7 @@ class TestDiffstatCacheIO(unittest.TestCase):
             self.assertEqual(result, {})
 
     def test_load_valid_cache(self):
-        data = {"_v": scan.DIFFSTAT_CACHE_VERSION, "abc123": {"a": 10, "d": 5}}
+        data = {"_v": scan.DIFFSTAT_CACHE_VERSION, "abc123": {"a": 10, "d": 5, "f": 3, "n": 1, "s": 8, "t": 2, "c": 0}}
         with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(data, f)
             f.flush()
