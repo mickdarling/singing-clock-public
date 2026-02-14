@@ -798,6 +798,19 @@
   <span style="color: var(--text-dim); font-size: 0.7rem; margin-left: auto;">Scoring mode: <strong id="scoring-mode-label">--</strong></span>
 </div>
 
+<section id="project-context" class="chart-card" style="max-width:1400px; margin:0 auto 1.5rem; display:none;" aria-label="Project context">
+  <details open id="project-context-details">
+    <summary style="cursor:pointer; font-weight:700; font-size:1.1rem; color:var(--text);">Project Goal</summary>
+    <div id="project-context-body" style="margin-top:0.75rem; line-height:1.6; font-size:0.85rem; color:var(--text-dim);">
+      <p id="project-goal-text">This dashboard tracks convergence across <strong id="ctx-repo-count">--</strong> repositories toward a unified capability target. The scoring rubric measures 9 capability categories weighted by sophistication level.</p>
+      <div id="project-goal-custom"></div>
+      <p style="margin-top:0.5rem;">
+        <strong>What convergence means:</strong> The logistic model predicts when cumulative capability will plateau (no more new capabilities being added) and commit rate will approach zero (the work is done). The <em>convergence date</em> is where these signals meet &mdash; the project's predicted graduation.
+      </p>
+    </div>
+  </details>
+</section>
+
 <section class="progress-bar-container" aria-label="Capability progress">
   <h2>Capability Progress</h2>
   <div class="chart-subtitle">Logistic model fit: current % of predicted maximum capability</div>
@@ -818,6 +831,20 @@
     <div class="chart-subtitle">How the predicted graduation date shifts over successive scans</div>
     <div class="chart-container" style="height: 300px;"><canvas id="chart-drift" role="img" aria-label="Convergence date drift chart showing prediction changes over time"></canvas></div>
     <div id="drift-summary" style="margin-top:1rem; font-size:0.85rem; color:var(--text-dim); text-align:center;"></div>
+    <details style="margin-top:0.75rem; font-size:0.8rem; color:var(--text-dim);">
+      <summary style="cursor:pointer; color:var(--text); font-weight:600;">What do these lines mean?</summary>
+      <div style="margin-top:0.5rem; line-height:1.6; max-width:700px;">
+        <p>Each line tracks a different milestone prediction across successive scans. Stable lines = confident predictions. Movement = the model is revising its estimate.</p>
+        <ul style="list-style:none; padding:0; margin:0.5rem 0;">
+          <li><span style="color:#ffd93d;">&#9644;</span> <strong>Convergence</strong> &mdash; The overall graduation date: when capability plateaus and commit rate approaches zero. This is the primary prediction.</li>
+          <li><span style="color:#ff6b6b;">&#9644;</span> <strong>Commit Zero</strong> &mdash; When the logistic model predicts commit rate drops to near zero (work is effectively done).</li>
+          <li><span style="color:#4ecdc4;">&#9644;</span> <strong>Capability 95%</strong> &mdash; When 95% of the predicted maximum capability score is reached (functionally self-sufficient).</li>
+          <li><span style="color:#58a6ff;">&#9644;</span> <strong>Capability 99%</strong> &mdash; When 99% of the predicted maximum is reached (diminishing returns, near-complete).</li>
+          <li><span style="color:#b380ff;">&#9644;</span> <strong>Sophistication 100%</strong> &mdash; When the proportion of advanced work (agents, self-modify, meta) plateaus. Often the last milestone to converge.</li>
+        </ul>
+        <p>When these lines cluster together, the project is on a clear trajectory. When they diverge, the model is uncertain about different aspects of completion.</p>
+      </div>
+    </details>
   </div>
 </section>
 
@@ -889,6 +916,21 @@
 
       <dt>Graduation</dt>
       <dd>When the project reaches the convergence point — capability near ceiling and commit rate approaching zero.</dd>
+
+      <dt>Convergence Date Drift</dt>
+      <dd>How the predicted graduation date changes across successive scans. Stable = confident prediction. Moving closer = ahead of schedule. Drifting further = slipping.</dd>
+
+      <dt>Commit Zero</dt>
+      <dd>The date when the logistic model predicts commit rate drops to near zero — the work is effectively done.</dd>
+
+      <dt>Capability 95% / 99%</dt>
+      <dd>When the cumulative capability score reaches 95% or 99% of the predicted asymptote. 95% = functionally self-sufficient. 99% = diminishing returns.</dd>
+
+      <dt>Sophistication 100%</dt>
+      <dd>When the ratio of advanced work (agents, self-modify, meta categories) plateaus. Often the last milestone to converge because advanced capabilities are built on top of foundational work.</dd>
+
+      <dt>Drift Rate</dt>
+      <dd>How fast the predicted date is changing per scan. Positive drift = target date slipping further away. Negative drift = converging faster than expected.</dd>
     </dl>
   </div>
 </div>
@@ -1980,6 +2022,19 @@ async function init() {
     (data.current?.total_commits || 0).toLocaleString();
   document.getElementById('stat-repos').textContent = data.repos_scanned || '--';
   document.getElementById('stat-day').textContent = data.current?.days_since_inception || '--';
+
+  // Project context
+  const ctxSection = document.getElementById('project-context');
+  if (ctxSection) {
+    ctxSection.style.display = 'block';
+    document.getElementById('ctx-repo-count').textContent = data.repos_scanned || '--';
+    // If data.json includes a goal description, show it
+    const goalCustom = document.getElementById('project-goal-custom');
+    if (data.goal) {
+      goalCustom.innerHTML = '<p style="margin-top:0.5rem;"><strong>Goal:</strong> ' +
+        data.goal.replace(/</g, '&lt;') + '</p>';
+    }
+  }
 
   // Progress bar
   const fill = document.getElementById('progress-fill');
