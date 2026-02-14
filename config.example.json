@@ -1,0 +1,127 @@
+{
+  "repos": {
+    "scan_dirs": [],
+    "broad_scan": {
+      "root": "~/Developer",
+      "max_depth": 4
+    },
+    "skip_patterns": [
+      "/archive/",
+      "/backup/",
+      "node_modules",
+      ".Trash",
+      "singing-clock",
+      "singing-clock-public"
+    ]
+  },
+  "goal": {
+    "name": "Self-sufficient AI system",
+    "inception_date": "2025-06-30"
+  },
+  "scoring": {
+    "large_source_threshold": 100,
+    "medium_source_threshold": 30,
+    "large_source_bonus": 0.30,
+    "medium_source_bonus": 0.15,
+    "major_new_files_threshold": 3,
+    "minor_new_files_threshold": 1,
+    "major_new_files_bonus": 0.20,
+    "minor_new_files_bonus": 0.10,
+    "config_only_multiplier": 0.8,
+    "deletion_heavy_threshold": 50,
+    "deletion_heavy_multiplier": 0.85,
+    "multiplier_floor": 0.4,
+    "multiplier_ceiling": 2.0,
+    "test_lines_threshold": 10,
+    "test_safety_bonus": 2
+  },
+  "rubric": {
+    "categories": {
+      "foundation": {
+        "weight": 1,
+        "patterns": [
+          "initial commit", "setup", "scaffold", "boilerplate",
+          "package\\.json", "tsconfig", "eslint", "prettier",
+          "basic.*structure", "foundation", "directory structure"
+        ]
+      },
+      "elements": {
+        "weight": 2,
+        "patterns": [
+          "persona", "skill", "template", "memory", "element type",
+          "element.*system", "crud", "create.*element", "edit.*element",
+          "delete.*element", "list.*element", "get.*element",
+          "element.*manager", "element.*handler", "element.*storage",
+          "element.*validator", "element.*loader"
+        ]
+      },
+      "agents": {
+        "weight": 3,
+        "patterns": [
+          "agent", "execute", "execution", "autonomy", "autonomous",
+          "agentic", "goal", "objective", "step", "execution.*state",
+          "execution.*lifecycle", "complete.*execution", "continue.*execution",
+          "update.*execution", "agent.*loop", "budget"
+        ]
+      },
+      "self_modify": {
+        "weight": 5,
+        "patterns": [
+          "self.?modif", "self.?improv", "self.?evolv", "self.?updat",
+          "dynamic.*creat", "runtime.*creat", "programmatic.*creat",
+          "auto.?generat", "element.*creat.*element", "meta.?element",
+          "create.*from.*template", "derive", "compose",
+          "addentry", "add.*entry", "append.*memory",
+          "evolv", "adapt", "learn"
+        ]
+      },
+      "meta": {
+        "weight": 5,
+        "patterns": [
+          "introspect", "relationship", "find.*similar", "search.*by.*verb",
+          "relationship.*stats", "element.*relationship", "dependency",
+          "self.?aware", "meta.?cogni", "reflect", "reason.*about",
+          "ensemble", "compose", "orchestrat",
+          "active.*element", "render", "context.*build"
+        ]
+      },
+      "ecosystem": {
+        "weight": 3,
+        "patterns": [
+          "collection", "portfolio", "install", "import",
+          "marketplace", "catalog", "browse", "search.*collection",
+          "submit", "publish", "share", "github.*auth",
+          "sync.*portfolio", "portfolio.*element"
+        ]
+      },
+      "safety": {
+        "weight": 2,
+        "patterns": [
+          "safety", "trust", "operator", "security", "permission",
+          "validation", "sanitiz", "escape", "guard", "tier",
+          "safety.*tier", "operator.*safety", "secure"
+        ]
+      },
+      "integration": {
+        "weight": 2,
+        "patterns": [
+          "ide", "studio", "electron", "bridge",
+          "api.*endpoint", "rest.*api", "websocket", "stream",
+          "external", "connect", "oauth", "zulip",
+          "ci.?cd", "deploy", "docker"
+        ]
+      },
+      "aql": {
+        "weight": 4,
+        "patterns": [
+          "aql", "query.*language", "query.*element", "search.*element",
+          "filter", "narrow", "resolver", "disambigu",
+          "mcp.*tool", "tool.*registr", "tool.*handler",
+          "crude", "operation.*dispatch"
+        ]
+      }
+    },
+    "high_level_categories": ["agents", "self_modify", "meta", "aql"],
+    "low_level_categories": ["foundation", "elements", "integration"]
+  }
+}
