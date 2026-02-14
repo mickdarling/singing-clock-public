@@ -285,6 +285,57 @@ for cat in CATEGORIES.values():
 HIGH_LEVEL_CATS = {"agents", "self_modify", "meta", "aql"}
 LOW_LEVEL_CATS = {"foundation", "elements", "integration"}
 
+# Maximum possible weighted score per commit (sum of all category weights * max hits of 3)
+_MAX_WEIGHTED = sum(c["weight"] for c in CATEGORIES.values())
+# Number of categories for breadth scoring
+_NUM_CATS = len(CATEGORIES)
+
+
+def compute_sophistication(cat_scores):
+    """Compute sophistication for a month's category scores.
+
+    Combines three signals:
+    - Weighted score ratio: high-weight categories / total (weighted by category weights)
+    - Category breadth: fraction of distinct categories active this month
+    - Blend: 70% weighted ratio + 30% breadth
+
+    Returns a value in [0, 1].
+    """
+    if not cat_scores:
+        return 0.0
+
+    # Weighted ratio: sum(weight * score) for high-level / sum(weight * score) for all
+    weighted_high = sum(
+        CATEGORIES[k]["weight"] * v
+        for k, v in cat_scores.items()
+        if k in HIGH_LEVEL_CATS and k in CATEGORIES
+    )
+    weighted_total = sum(
+        CATEGORIES[k]["weight"] * v
+        for k, v in cat_scores.items()
+        if k in CATEGORIES
+    )
+    ratio = weighted_high / weighted_total if weighted_total > 0 else 0
+
+    # Breadth: fraction of categories with any score
+    active_cats = sum(1 for k in cat_scores if k in CATEGORIES and cat_scores[k] > 0)
+    breadth = active_cats / _NUM_CATS
+
+    return 0.7 * ratio + 0.3 * breadth
+
+
+def smooth_sophistication(raw_values, alpha=0.4):
+    """Apply exponential moving average to smooth noisy sophistication values.
+
+    alpha controls responsiveness: higher = more responsive, lower = smoother.
+    """
+    if not raw_values:
+        return []
+    smoothed = [raw_values[0]]
+    for v in raw_values[1:]:
+        smoothed.append(alpha * v + (1 - alpha) * smoothed[-1])
+    return smoothed
+
 
 # ─── Repo Discovery ─────────────────────────────────────────────────────
 
@@ -1241,9 +1292,7 @@ def main(args=None):
         cum_capability += cap
 
         cats = monthly_cat_scores.get(ym, {})
-        high = sum(v for k, v in cats.items() if k in HIGH_LEVEL_CATS)
-        total_cat = sum(cats.values()) if cats else 1
-        soph = high / total_cat if total_cat > 0 else 0
+        soph = compute_sophistication(cats)
 
         monthly_data.append({
             "month": f"{ym[0]}-{ym[1]:02d}",
@@ -1253,6 +1302,12 @@ def main(args=None):
             "cumulative_commits": cum_commits,
             "cumulative_capability": round(cum_capability),
         })
+
+    # Smooth sophistication values with EMA
+    raw_soph = [m["sophistication"] for m in monthly_data]
+    smoothed = smooth_sophistication(raw_soph)
+    for i, m in enumerate(monthly_data):
+        m["sophistication"] = round(smoothed[i], 3)
 
     # Aggregate by week
     print("Aggregating by week...")
