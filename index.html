@@ -265,6 +265,49 @@
 
   .theme-toggle:hover { border-color: var(--teal); }
 
+  .export-dropdown {
+    position: relative;
+    display: inline-block;
+  }
+
+  .export-menu {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: 100%;
+    margin-top: 0.25rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    min-width: 160px;
+    z-index: 100;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  }
+
+  .export-menu.active { display: block; }
+
+  .export-menu button {
+    display: block;
+    width: 100%;
+    padding: 0.6rem 1rem;
+    background: none;
+    border: none;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 0.8rem;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .export-menu button:hover {
+    background: var(--bg);
+    color: var(--teal);
+  }
+
+  .export-menu button + button {
+    border-top: 1px solid var(--border);
+  }
+
   .scan-status {
     font-size: 0.75rem;
     color: var(--text-dim);
@@ -638,6 +681,13 @@
   <button class="btn" onclick="location.reload()">Refresh</button>
   <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark theme" aria-label="Toggle light/dark theme"></button>
   <button class="btn" onclick="openGlossary()" title="Terminology guide">? Help</button>
+  <div class="export-dropdown">
+    <button class="btn" onclick="toggleExportMenu()" id="btn-export" disabled>Export</button>
+    <div class="export-menu" id="export-menu">
+      <button onclick="exportCSV()">CSV (monthly data)</button>
+      <button onclick="exportJSON()">JSON (full scan)</button>
+    </div>
+  </div>
 </nav>
 
 <main id="main-content">
@@ -793,6 +843,65 @@ document.getElementById('glossary-overlay').addEventListener('click', function(e
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape') closeGlossary();
 });
+
+// ─── Data Export ────────────────────────────────────────────────────────
+function toggleExportMenu() {
+  document.getElementById('export-menu').classList.toggle('active');
+}
+
+// Close export menu when clicking outside
+document.addEventListener('click', function(e) {
+  const dropdown = document.getElementById('export-menu');
+  if (!dropdown) return;
+  if (!e.target.closest('.export-dropdown')) {
+    dropdown.classList.remove('active');
+  }
+});
+
+function downloadFile(content, filename, mime) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportCSV() {
+  if (!DATA) return;
+  const months = DATA.months || [];
+  const commits = DATA.commit_counts || [];
+  const scores = DATA.cumulative_scores || [];
+  const soph = DATA.sophistication_ratios || [];
+
+  let csv = 'Month,Commits,Cumulative Score,Sophistication Ratio\n';
+  for (let i = 0; i < months.length; i++) {
+    csv += `${months[i]},${commits[i] || 0},${scores[i] || 0},${(soph[i] || 0).toFixed(4)}\n`;
+  }
+
+  // Add metadata as comments
+  const meta = [
+    `# Singing Clock Export`,
+    `# Generated: ${DATA.generated || 'unknown'}`,
+    `# Repos: ${(DATA.repos || []).join('; ')}`,
+    `# Total Commits: ${DATA.total_commits || 0}`,
+    `# Convergence Date: ${DATA.models?.convergence_date || 'unknown'}`,
+    ''
+  ].join('\n');
+
+  const ts = new Date().toISOString().slice(0, 10);
+  downloadFile(meta + csv, `singing-clock-${ts}.csv`, 'text/csv');
+  document.getElementById('export-menu').classList.remove('active');
+}
+
+function exportJSON() {
+  if (!DATA) return;
+  const ts = new Date().toISOString().slice(0, 10);
+  downloadFile(JSON.stringify(DATA, null, 2), `singing-clock-${ts}.json`, 'application/json');
+  document.getElementById('export-menu').classList.remove('active');
+}
+
 
 // ─── Milestone Helpers ──────────────────────────────────────────────────
 // Convert a date string (YYYY-MM-DD) to a month-index relative to the timeline
@@ -1587,6 +1696,9 @@ function renderDriftChart(data) {
 async function init() {
   DATA = await loadData();
   const data = DATA;
+
+  // Enable export when data is available
+  if (data) document.getElementById('btn-export').disabled = false;
 
   // Countdown
   const targetDate = data.models?.convergence_date || '2026-06-30';
