@@ -349,13 +349,58 @@ def _is_hash(line):
     return len(line) == 40 and all(c in _HEX for c in line)
 
 
+_DIFFSTAT_KEYS = ("a", "d", "f", "n", "s", "t", "c")
+
+
+def _validate_diffstat_entry(entry):
+    """Return True if entry has the expected shape."""
+    return (
+        isinstance(entry, dict)
+        and all(k in entry for k in _DIFFSTAT_KEYS)
+        and all(isinstance(entry[k], (int, float)) for k in _DIFFSTAT_KEYS)
+    )
+
+
+def _validate_score_entry(entry):
+    """Return True if a score cache entry has the expected shape."""
+    return (
+        isinstance(entry, dict)
+        and "v" in entry and "total" in entry and "cats" in entry
+        and isinstance(entry["total"], (int, float))
+        and isinstance(entry["cats"], dict)
+    )
+
+
+def _validate_enrich_entry(entry):
+    """Return True if an enrich cache entry has the expected shape."""
+    return isinstance(entry, dict) and all(
+        isinstance(v, (int, float)) for v in entry.values()
+    )
+
+
+def _spot_check_cache(data, validator, max_checks=5):
+    """Spot-check up to max_checks non-meta entries. Return True if all pass."""
+    checked = 0
+    for key, val in data.items():
+        if key.startswith("_"):
+            continue
+        if not validator(val):
+            return False
+        checked += 1
+        if checked >= max_checks:
+            break
+    return True
+
+
 def load_diffstat_cache():
     if not DIFFSTAT_CACHE_FILE.exists():
         return {}
     try:
         data = json.loads(DIFFSTAT_CACHE_FILE.read_text())
         if isinstance(data, dict) and data.get("_v") == DIFFSTAT_CACHE_VERSION:
-            return data
+            if _spot_check_cache(data, _validate_diffstat_entry):
+                return data
+            print("  Warning: diffstat_cache.json has malformed entries, starting fresh")
     except (json.JSONDecodeError, OSError) as e:
         print(f"  Warning: diffstat_cache.json corrupted ({e}), starting fresh")
     return {"_v": DIFFSTAT_CACHE_VERSION}
@@ -742,7 +787,9 @@ def load_score_cache():
     try:
         data = json.loads(SCORE_CACHE_FILE.read_text())
         if isinstance(data, dict):
-            return data
+            if _spot_check_cache(data, _validate_score_entry):
+                return data
+            print("  Warning: score_cache.json has malformed entries, starting fresh")
     except (json.JSONDecodeError, OSError) as e:
         print(f"  Warning: score_cache.json corrupted ({e}), starting fresh")
     return {}
@@ -783,7 +830,9 @@ def load_enrich_cache():
     try:
         data = json.loads(ENRICH_CACHE_FILE.read_text())
         if isinstance(data, dict) and data.get("_v") == ENRICH_CACHE_VERSION:
-            return data
+            if _spot_check_cache(data, _validate_enrich_entry):
+                return data
+            print("  Warning: enrich_cache.json has malformed entries, starting fresh")
     except (json.JSONDecodeError, OSError) as e:
         print(f"  Warning: enrich_cache.json corrupted ({e}), starting fresh")
     return {"_v": ENRICH_CACHE_VERSION}
