@@ -28,16 +28,16 @@ Singing Clock is a convergence countdown dashboard for AI-assisted software proj
 
 9 categories with weights 1-5. Regex patterns match commit messages. LLM enrichment replaces regex with semantic classification. Diffstat weighting adjusts scores based on code volume. Constants for all thresholds are at module level (LARGE_SOURCE_THRESHOLD, CONFIG_ONLY_MULTIPLIER, etc.).
 
-## Open Issues (from private repo, still applicable)
+## Open Issues
 
-- #4: Improve sophistication metric beyond category ratios
-- #11: Schema validation for cache files on load
-- #13: Externalize configuration (repos, rubric, goal definition) — HIGH PRIORITY for public repo
-- #14: npm package with easy install
-- #15: Robust test infrastructure
-- #17: Dual-scoring graph overlays (regex vs LLM vs combined)
-- #18: Track/graph scoring snapshots over time (convergence drift)
-- #19: Score open issues by projected convergence impact
+- #1: Improve sophistication metric beyond category ratios
+- #2: Schema validation for cache files on load
+- #3: Externalize configuration (repos, rubric, goal definition) — HIGH PRIORITY for public repo
+- #4: npm package with easy install
+- #5: Robust test infrastructure
+- #6: Dual-scoring graph overlays (regex vs LLM vs combined)
+- #7: Track/graph scoring snapshots over time (convergence drift)
+- #8: Score open issues by projected convergence impact
 
 ## Git Workflow
 
