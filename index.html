@@ -641,6 +641,68 @@
     to { opacity: 1; transform: translateY(0); }
   }
 
+  /* Repo list and config panel */
+  .repo-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+  .repo-table th {
+    text-align: left; padding: 0.5rem 0.75rem; color: var(--text-dim);
+    font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--border); white-space: nowrap;
+  }
+  .repo-table td { padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); color: var(--text); }
+  .repo-table tr:last-child td { border-bottom: none; }
+  .repo-status { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 0.5rem; vertical-align: middle; }
+  .repo-status.active { background: var(--teal); }
+  .repo-status.stale { background: var(--yellow); }
+  .repo-status.inactive { background: var(--text-dim); }
+  .repo-pct-bar { display: inline-block; height: 4px; border-radius: 2px; background: var(--teal); vertical-align: middle; margin-right: 0.5rem; }
+  .repo-show-all { background: none; border: 1px solid var(--border); color: var(--text-dim); padding: 0.4rem 1rem; border-radius: 4px; cursor: pointer; font-size: 0.75rem; margin-top: 0.75rem; }
+  .repo-show-all:hover { border-color: var(--text); color: var(--text); }
+
+  .config-panel { margin-top: 1rem; }
+  .config-section { margin-bottom: 1.25rem; }
+  .config-section h4 { font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
+  .config-list { list-style: none; padding: 0; }
+  .config-list li {
+    display: flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.5rem;
+    border: 1px solid var(--border); border-radius: 4px; margin-bottom: 0.35rem;
+    font-size: 0.8rem; font-family: monospace; color: var(--text);
+  }
+  .config-list li .remove-btn {
+    margin-left: auto; background: none; border: none; color: var(--red);
+    cursor: pointer; font-size: 1rem; padding: 0 0.25rem; line-height: 1;
+  }
+  .config-list li .remove-btn:hover { opacity: 0.7; }
+  .config-add-row { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+  .config-add-row input {
+    flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
+    color: var(--text); padding: 0.4rem 0.6rem; font-size: 0.8rem; font-family: monospace;
+  }
+  .config-add-row button {
+    background: var(--teal); color: #000; border: none; border-radius: 4px;
+    padding: 0.4rem 0.8rem; cursor: pointer; font-size: 0.75rem; font-weight: 600;
+  }
+  .config-add-row button:hover { opacity: 0.85; }
+  .skip-tag {
+    display: inline-flex; align-items: center; gap: 0.3rem;
+    background: var(--bg); border: 1px solid var(--border); border-radius: 12px;
+    padding: 0.2rem 0.6rem; margin: 0.15rem; font-size: 0.75rem; color: var(--text);
+  }
+  .skip-tag .remove-btn { background: none; border: none; color: var(--red); cursor: pointer; font-size: 0.85rem; padding: 0; line-height: 1; }
+  .discover-results { max-height: 250px; overflow-y: auto; border: 1px solid var(--border); border-radius: 4px; padding: 0.5rem; margin-top: 0.5rem; }
+  .discover-results label { display: block; padding: 0.25rem 0.5rem; font-size: 0.8rem; cursor: pointer; font-family: monospace; }
+  .discover-results label:hover { background: var(--border); border-radius: 3px; }
+  .config-actions { display: flex; gap: 0.75rem; margin-top: 1rem; flex-wrap: wrap; }
+  .config-actions .btn-save {
+    background: var(--teal); color: #000; border: none; border-radius: 6px;
+    padding: 0.5rem 1.25rem; cursor: pointer; font-weight: 600; font-size: 0.8rem;
+  }
+  .config-actions .btn-save:hover { opacity: 0.85; }
+  .config-actions .btn-discover {
+    background: none; border: 1px solid var(--border); color: var(--text);
+    border-radius: 6px; padding: 0.5rem 1.25rem; cursor: pointer; font-size: 0.8rem;
+  }
+  .config-actions .btn-discover:hover { border-color: var(--text); }
+
   /* Tablet landscape and smaller */
   @media (max-width: 900px) {
     .charts { grid-template-columns: 1fr; }
@@ -650,6 +712,7 @@
 
   /* Tablet portrait */
   @media (max-width: 768px) {
+    .repo-table .col-capability, .repo-table .col-first { display: none; }
     body { padding: 1rem; }
 
     .hero { padding: 2rem 0.75rem; }
@@ -680,6 +743,7 @@
 
   /* Phone */
   @media (max-width: 480px) {
+    .repo-table .col-categories, .repo-table .col-commits { display: none; }
     body { padding: 0.5rem; }
 
     .hero { padding: 1.5rem 0.5rem; margin-bottom: 1rem; }
@@ -844,6 +908,23 @@
         </ul>
         <p>When these lines cluster together, the project is on a clear trajectory. When they diverge, the model is uncertain about different aspects of completion.</p>
       </div>
+    </details>
+  </div>
+</section>
+
+<section style="max-width:1400px; margin:0 auto 1.5rem;">
+  <div class="chart-card">
+    <details id="repo-details">
+      <summary style="cursor:pointer;"><h2 style="display:inline; font-size:0.85rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.1em;">Repositories</h2></summary>
+      <div id="repo-list-container" style="margin-top:1rem;">
+        <p style="color:var(--text-dim); font-size:0.85rem;">Run a scan to see per-repo stats.</p>
+      </div>
+      <details id="config-details" style="margin-top:1.25rem;">
+        <summary style="cursor:pointer; font-size:0.85rem; color:var(--text-dim); font-weight:600;">Configure Scan Settings</summary>
+        <div id="config-panel" class="config-panel">
+          <p style="color:var(--text-dim); font-size:0.85rem;">Loading configuration...</p>
+        </div>
+      </details>
     </details>
   </div>
 </section>
@@ -1996,6 +2077,276 @@ function updateScoringOverlays() {
   }
 }
 
+// ─── Repo List & Config ─────────────────────────────────────────────────
+let _configCache = null;
+const REPO_DISPLAY_LIMIT = 20;
+
+function renderRepoList(data) {
+  const container = document.getElementById('repo-list-container');
+  if (!data.repos || !data.repos.length) {
+    container.innerHTML = '<p style="color:var(--text-dim); font-size:0.85rem;">Run a scan to see per-repo stats.</p>';
+    return;
+  }
+  const repos = data.repos;
+  const now = new Date();
+  let showAll = false;
+
+  function buildTable(limit) {
+    const visible = limit ? repos.slice(0, limit) : repos;
+    let rows = visible.map(r => {
+      const last = r.last_activity ? new Date(r.last_activity) : null;
+      const daysSince = last ? Math.floor((now - last) / 86400000) : 999;
+      const statusClass = daysSince < 30 ? 'active' : daysSince < 90 ? 'stale' : 'inactive';
+      const pctWidth = Math.max(2, Math.min(100, r.pct_contribution));
+      const cats = (r.top_categories || []).map(c =>
+        `<span class="cat-tag">${c}</span>`
+      ).join('');
+      const lastStr = r.last_activity || '--';
+      return `<tr>
+        <td><span class="repo-status ${statusClass}"></span>${r.name}</td>
+        <td class="col-commits" style="text-align:right">${r.commits.toLocaleString()}</td>
+        <td class="col-capability"><span class="repo-pct-bar" style="width:${pctWidth}px;"></span>${r.pct_contribution}%</td>
+        <td class="col-first">${r.first_activity || '--'}</td>
+        <td>${lastStr}</td>
+        <td class="col-categories">${cats}</td>
+      </tr>`;
+    }).join('');
+
+    let html = `<table class="repo-table">
+      <thead><tr>
+        <th>Repository</th>
+        <th class="col-commits" style="text-align:right">Commits</th>
+        <th class="col-capability">Capability</th>
+        <th class="col-first">First Active</th>
+        <th>Last Active</th>
+        <th class="col-categories">Top Categories</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+    if (repos.length > REPO_DISPLAY_LIMIT) {
+      const label = showAll ? `Show top ${REPO_DISPLAY_LIMIT}` : `Show all ${repos.length} repos`;
+      html += `<button class="repo-show-all" onclick="toggleRepoList()">${label}</button>`;
+    }
+    return html;
+  }
+
+  container.innerHTML = buildTable(REPO_DISPLAY_LIMIT);
+
+  window.toggleRepoList = function() {
+    showAll = !showAll;
+    container.innerHTML = buildTable(showAll ? null : REPO_DISPLAY_LIMIT);
+  };
+}
+
+async function loadConfig() {
+  if (_configCache) return _configCache;
+  try {
+    const resp = await fetch('/api/config');
+    if (!resp.ok) throw new Error('Failed to load config');
+    _configCache = await resp.json();
+  } catch (e) {
+    _configCache = {
+      _is_example: true,
+      repos: { scan_dirs: [], broad_scan: { root: '~/Developer', max_depth: 4 }, skip_patterns: [] },
+      goal: { name: '', inception_date: '' },
+    };
+  }
+  return _configCache;
+}
+
+function renderConfigPanel(config) {
+  const panel = document.getElementById('config-panel');
+  const repos = config.repos || {};
+  const scanDirs = repos.scan_dirs || [];
+  const broadScan = repos.broad_scan || { root: '~/Developer', max_depth: 4 };
+  const skipPatterns = repos.skip_patterns || [];
+
+  const dirsHtml = scanDirs.map((d, i) =>
+    `<li>${d}<button class="remove-btn" onclick="removeScanDir(${i})" title="Remove" aria-label="Remove ${d}">&times;</button></li>`
+  ).join('');
+
+  const skipsHtml = skipPatterns.map((p, i) =>
+    `<span class="skip-tag">${p}<button class="remove-btn" onclick="removeSkipPattern(${i})" title="Remove" aria-label="Remove ${p}">&times;</button></span>`
+  ).join('');
+
+  const isExample = config._is_example ? '<p style="color:var(--yellow); font-size:0.8rem; margin-bottom:1rem;">Using example config. Changes will create a new config.json file.</p>' : '';
+
+  panel.innerHTML = `${isExample}
+    <div class="config-section">
+      <h4>Scan Directories</h4>
+      <ul class="config-list" id="scan-dirs-list">${dirsHtml || '<li style="color:var(--text-dim); border:none; padding-left:0;">None configured (using broad scan only)</li>'}</ul>
+      <div class="config-add-row">
+        <input type="text" id="new-scan-dir" placeholder="/path/to/repos" aria-label="New scan directory">
+        <button onclick="addScanDir()">Add</button>
+      </div>
+    </div>
+    <div class="config-section">
+      <h4>Broad Scan</h4>
+      <div class="config-add-row">
+        <input type="text" id="broad-scan-root" value="${broadScan.root}" placeholder="~/Developer" aria-label="Broad scan root directory">
+        <label style="font-size:0.8rem; color:var(--text-dim); white-space:nowrap; display:flex; align-items:center; gap:0.3rem;">
+          Depth: <input type="number" id="broad-scan-depth" value="${broadScan.max_depth}" min="1" max="6" style="width:3rem; background:var(--bg); border:1px solid var(--border); border-radius:4px; color:var(--text); padding:0.3rem; font-size:0.8rem;" aria-label="Broad scan max depth">
+        </label>
+      </div>
+    </div>
+    <div class="config-section">
+      <h4>Skip Patterns</h4>
+      <div id="skip-patterns-container">${skipsHtml || '<span style="color:var(--text-dim); font-size:0.8rem;">None</span>'}</div>
+      <div class="config-add-row" style="margin-top:0.5rem;">
+        <input type="text" id="new-skip-pattern" placeholder="pattern-to-skip" aria-label="New skip pattern">
+        <button onclick="addSkipPattern()">Add</button>
+      </div>
+    </div>
+    <div class="config-actions">
+      <button class="btn-save" onclick="saveConfigAndRescan()">Save &amp; Rescan</button>
+      <button class="btn-discover" onclick="discoverRepos()">Discover Repos...</button>
+    </div>
+    <div id="discover-container"></div>
+    <div id="config-status" style="margin-top:0.5rem; font-size:0.8rem;"></div>`;
+}
+
+function getCurrentConfig() {
+  const config = JSON.parse(JSON.stringify(_configCache || {}));
+  const root = document.getElementById('broad-scan-root');
+  const depth = document.getElementById('broad-scan-depth');
+  if (root && depth) {
+    if (!config.repos) config.repos = {};
+    config.repos.broad_scan = {
+      root: root.value,
+      max_depth: parseInt(depth.value) || 4,
+    };
+  }
+  return config;
+}
+
+window.addScanDir = function() {
+  const input = document.getElementById('new-scan-dir');
+  const dir = input.value.trim();
+  if (!dir) return;
+  if (!_configCache.repos) _configCache.repos = {};
+  if (!_configCache.repos.scan_dirs) _configCache.repos.scan_dirs = [];
+  _configCache.repos.scan_dirs.push(dir);
+  input.value = '';
+  renderConfigPanel(_configCache);
+};
+
+window.removeScanDir = function(index) {
+  _configCache.repos.scan_dirs.splice(index, 1);
+  renderConfigPanel(_configCache);
+};
+
+window.addSkipPattern = function() {
+  const input = document.getElementById('new-skip-pattern');
+  const pat = input.value.trim();
+  if (!pat) return;
+  if (!_configCache.repos) _configCache.repos = {};
+  if (!_configCache.repos.skip_patterns) _configCache.repos.skip_patterns = [];
+  _configCache.repos.skip_patterns.push(pat);
+  input.value = '';
+  renderConfigPanel(_configCache);
+};
+
+window.removeSkipPattern = function(index) {
+  _configCache.repos.skip_patterns.splice(index, 1);
+  renderConfigPanel(_configCache);
+};
+
+window.saveConfigAndRescan = async function() {
+  const status = document.getElementById('config-status');
+  const config = getCurrentConfig();
+  status.textContent = 'Saving...';
+  status.style.color = cssVar('--text-dim');
+  try {
+    const resp = await fetch('/api/config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config),
+    });
+    if (!resp.ok) {
+      const err = await resp.json();
+      throw new Error(err.error || 'Save failed');
+    }
+    _configCache = config;
+    status.textContent = 'Saved. Starting rescan...';
+    status.style.color = cssVar('--teal');
+    // Trigger rescan
+    await fetch('/api/scan', { method: 'POST' });
+    // Poll for completion
+    let attempts = 0;
+    const poll = setInterval(async () => {
+      attempts++;
+      try {
+        const s = await fetch('/api/status');
+        const d = await s.json();
+        if (!d.scan_running) {
+          clearInterval(poll);
+          status.textContent = 'Rescan complete. Reloading...';
+          setTimeout(() => location.reload(), 500);
+        } else {
+          status.textContent = `Scanning... (${attempts * 3}s)`;
+        }
+      } catch {
+        if (attempts > 100) clearInterval(poll);
+      }
+    }, 3000);
+  } catch (e) {
+    status.textContent = 'Error: ' + e.message;
+    status.style.color = cssVar('--red');
+  }
+};
+
+window.discoverRepos = async function() {
+  const container = document.getElementById('discover-container');
+  const rootInput = document.getElementById('broad-scan-root');
+  const root = rootInput ? rootInput.value : '~/Developer';
+  const depthInput = document.getElementById('broad-scan-depth');
+  const depth = depthInput ? depthInput.value : '4';
+  container.innerHTML = '<p style="font-size:0.8rem; color:var(--text-dim);">Discovering repos...</p>';
+  try {
+    const resp = await fetch(`/api/repos/discover?root=${encodeURIComponent(root)}&max_depth=${depth}`);
+    if (!resp.ok) {
+      const err = await resp.json();
+      throw new Error(err.error || 'Discovery failed');
+    }
+    const data = await resp.json();
+    if (!data.repos.length) {
+      container.innerHTML = '<p style="font-size:0.8rem; color:var(--text-dim);">No repositories found.</p>';
+      return;
+    }
+    const existingDirs = new Set((_configCache.repos?.scan_dirs || []).map(d => d.replace(/\/$/, '')));
+    const items = data.repos.map(r => {
+      const checked = existingDirs.has(r.path) ? 'checked disabled' : '';
+      return `<label><input type="checkbox" value="${r.path}" ${checked}> ${r.name} <span style="color:var(--text-dim); font-size:0.7rem;">${r.path}</span></label>`;
+    }).join('');
+    container.innerHTML = `<div class="discover-results">${items}</div>
+      <button class="btn-discover" style="margin-top:0.5rem;" onclick="addDiscoveredRepos()">Add Selected</button>`;
+  } catch (e) {
+    container.innerHTML = `<p style="font-size:0.8rem; color:var(--red);">Error: ${e.message}</p>`;
+  }
+};
+
+window.addDiscoveredRepos = function() {
+  const container = document.getElementById('discover-container');
+  const checkboxes = container.querySelectorAll('input[type="checkbox"]:checked:not(:disabled)');
+  if (!_configCache.repos) _configCache.repos = {};
+  if (!_configCache.repos.scan_dirs) _configCache.repos.scan_dirs = [];
+  checkboxes.forEach(cb => {
+    if (!_configCache.repos.scan_dirs.includes(cb.value)) {
+      _configCache.repos.scan_dirs.push(cb.value);
+    }
+  });
+  container.innerHTML = '';
+  renderConfigPanel(_configCache);
+};
+
+// Lazy-load config when config details is opened
+document.getElementById('config-details').addEventListener('toggle', async function() {
+  if (this.open) {
+    const config = await loadConfig();
+    renderConfigPanel(config);
+  }
+});
+
 // ─── Init ───────────────────────────────────────────────────────────────
 async function init() {
   DATA = await loadData();
@@ -2052,6 +2403,7 @@ async function init() {
   try { renderSophisticationChart(data); } catch (e) { console.warn('Sophistication chart error:', e); }
   try { renderConvergenceChart(data); } catch (e) { console.warn('Convergence chart error:', e); }
   try { renderIssueImpactTable(data); } catch (e) { console.warn('Issue impact table error:', e); }
+  try { renderRepoList(data); } catch (e) { console.warn('Repo list error:', e); }
 
   // Show scoring toggles if dual-scoring data is present
   if (hasDualScoring()) {

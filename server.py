@@ -9,10 +9,12 @@ Default port: 8080
 
 import http.server
 import json
+import os
 import subprocess
 import sys
 import threading
 from pathlib import Path
+from urllib.parse import urlparse, parse_qs
 
 from datetime import datetime, timezone
 
@@ -34,13 +36,19 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         super().__init__(*args, directory=str(PROJECT_DIR), **kwargs)
 
     def do_GET(self):
-        if self.path == "/api/scan":
+        parsed = urlparse(self.path)
+        path = parsed.path
+        if path == "/api/scan":
             self.handle_scan()
-        elif self.path == "/api/status":
+        elif path == "/api/status":
             self.handle_status()
-        elif self.path == "/api/scan-logs":
+        elif path == "/api/scan-logs":
             self.handle_scan_logs()
-        elif self.path == "/":
+        elif path == "/api/config":
+            self.handle_config_get()
+        elif path == "/api/repos/discover":
+            self.handle_repos_discover(parsed.query)
+        elif path == "/":
             self.path = "/index.html"
             super().do_GET()
         else:
@@ -49,6 +57,13 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     def do_POST(self):
         if self.path == "/api/scan":
             self.handle_scan()
+        else:
+            self.send_error(405, "Method not allowed")
+
+    def do_PUT(self):
+        parsed = urlparse(self.path)
+        if parsed.path == "/api/config":
+            self.handle_config_put()
         else:
             self.send_error(405, "Method not allowed")
 
@@ -125,6 +140,96 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             "timestamp": last_scan_result["timestamp"],
             "scan_running": scan_running,
         })
+
+    def read_body(self):
+        length = int(self.headers.get("Content-Length", 0))
+        if length > 102400:  # 100KB limit
+            return None
+        return self.rfile.read(length)
+
+    def handle_config_get(self):
+        config_file = PROJECT_DIR / "config.json"
+        example_file = PROJECT_DIR / "config.example.json"
+        if config_file.exists():
+            try:
+                with open(config_file) as f:
+                    config = json.load(f)
+                self.send_json(config)
+                return
+            except Exception:
+                pass
+        if example_file.exists():
+            try:
+                with open(example_file) as f:
+                    config = json.load(f)
+                config["_is_example"] = True
+                self.send_json(config)
+                return
+            except Exception:
+                pass
+        self.send_json({
+            "_is_example": True,
+            "repos": {"scan_dirs": [], "broad_scan": {"root": "~/Developer", "max_depth": 4}, "skip_patterns": []},
+            "goal": {"name": "Self-sufficient AI system", "inception_date": "2025-06-30"},
+        })
+
+    def handle_config_put(self):
+        body = self.read_body()
+        if body is None:
+            self.send_json({"error": "Request body too large"}, 413)
+            return
+        try:
+            config = json.loads(body)
+        except (json.JSONDecodeError, ValueError):
+            self.send_json({"error": "Invalid JSON"}, 400)
+            return
+        if not isinstance(config, dict):
+            self.send_json({"error": "Config must be a JSON object"}, 400)
+            return
+        # Remove internal flags
+        config.pop("_is_example", None)
+        # Security: reject path traversal in scan_dirs
+        scan_dirs = config.get("repos", {}).get("scan_dirs", [])
+        for d in scan_dirs:
+            if ".." in str(d):
+                self.send_json({"error": "Path traversal not allowed"}, 400)
+                return
+        config_file = PROJECT_DIR / "config.json"
+        with open(config_file, "w") as f:
+            json.dump(config, f, indent=2)
+        self.send_json({"status": "saved"})
+
+    def handle_repos_discover(self, query_string):
+        params = parse_qs(query_string)
+        root = params.get("root", ["~/Developer"])[0]
+        root = os.path.expanduser(root)
+        try:
+            max_depth = min(int(params.get("max_depth", ["4"])[0]), 6)
+        except ValueError:
+            max_depth = 4
+        if ".." in root:
+            self.send_json({"error": "Path traversal not allowed"}, 400)
+            return
+        if not os.path.isdir(root):
+            self.send_json({"error": f"Directory not found: {root}"}, 404)
+            return
+        try:
+            result = subprocess.run(
+                ["find", root, "-maxdepth", str(max_depth), "-name", ".git", "-type", "d"],
+                capture_output=True, text=True, timeout=10,
+            )
+            repos = []
+            for line in result.stdout.strip().split("\n"):
+                line = line.strip()
+                if line and line.endswith("/.git"):
+                    repo_path = line[:-5]  # remove /.git
+                    repos.append({"path": repo_path, "name": os.path.basename(repo_path)})
+            repos.sort(key=lambda r: r["name"].lower())
+            self.send_json({"repos": repos})
+        except subprocess.TimeoutExpired:
+            self.send_json({"error": "Discovery timed out"}, 504)
+        except Exception as e:
+            self.send_json({"error": str(e)}, 500)
 
     def send_json(self, data, code=200):
         self.send_response(code)
