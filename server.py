@@ -199,15 +199,39 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             return
         # Remove internal flags
         config.pop("_is_example", None)
+        # Schema validation
+        repos_section = config.get("repos")
+        if repos_section is not None and not isinstance(repos_section, dict):
+            self.send_json({"error": "repos must be an object"}, 400)
+            return
+        if repos_section:
+            scan_dirs = repos_section.get("scan_dirs")
+            if scan_dirs is not None and not isinstance(scan_dirs, list):
+                self.send_json({"error": "repos.scan_dirs must be an array"}, 400)
+                return
+            skip_patterns = repos_section.get("skip_patterns")
+            if skip_patterns is not None and not isinstance(skip_patterns, list):
+                self.send_json({"error": "repos.skip_patterns must be an array"}, 400)
+                return
+            broad_scan = repos_section.get("broad_scan")
+            if broad_scan is not None and not isinstance(broad_scan, dict):
+                self.send_json({"error": "repos.broad_scan must be an object"}, 400)
+                return
+        goal_section = config.get("goal")
+        if goal_section is not None and not isinstance(goal_section, dict):
+            self.send_json({"error": "goal must be an object"}, 400)
+            return
         # Security: validate all paths resolve under home directory
         scan_dirs = config.get("repos", {}).get("scan_dirs", [])
-        for d in scan_dirs:
-            if not _is_safe_path(d):
-                self.send_json({"error": f"Invalid path: {d}"}, 400)
-                return
+        invalid_dirs = [d for d in scan_dirs if not isinstance(d, str) or not _is_safe_path(d)]
+        if invalid_dirs:
+            print(f"  Config rejected: invalid scan_dirs: {invalid_dirs}")
+            self.send_json({"error": "One or more scan directories are invalid"}, 400)
+            return
         broad_root = config.get("repos", {}).get("broad_scan", {}).get("root")
         if broad_root and not _is_safe_path(broad_root):
-            self.send_json({"error": f"Invalid broad scan root: {broad_root}"}, 400)
+            print(f"  Config rejected: invalid broad_scan root: {broad_root}")
+            self.send_json({"error": "Invalid broad scan root directory"}, 400)
             return
         config_file = PROJECT_DIR / "config.json"
         with open(config_file, "w") as f:
@@ -227,7 +251,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             return
         root = str(Path(root).resolve())
         if not os.path.isdir(root):
-            self.send_json({"error": f"Directory not found: {root}"}, 404)
+            self.send_json({"error": "Directory not found"}, 404)
             return
         try:
             result = subprocess.run(
@@ -245,7 +269,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         except subprocess.TimeoutExpired:
             self.send_json({"error": "Discovery timed out"}, 504)
         except Exception as e:
-            self.send_json({"error": str(e)}, 500)
+            print(f"  Repo discovery error: {e}")
+            self.send_json({"error": "Discovery failed"}, 500)
 
     def send_json(self, data, code=200):
         self.send_response(code)
