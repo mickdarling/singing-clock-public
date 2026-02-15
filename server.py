@@ -31,6 +31,15 @@ scan_running = False
 last_scan_result = {"success": None, "output": "", "timestamp": None}
 
 
+def _is_safe_path(path_str):
+    """Validate that a path resolves to somewhere under the user's home directory."""
+    try:
+        resolved = Path(os.path.expanduser(path_str)).resolve()
+        return resolved.is_relative_to(Path.home().resolve())
+    except (ValueError, RuntimeError, OSError):
+        return False
+
+
 class Handler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(PROJECT_DIR), **kwargs)
@@ -69,13 +78,14 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
     def handle_scan(self):
         global scan_running
-        if scan_running:
-            self.send_json({"status": "already_running"}, 409)
-            return
+        with scan_lock:
+            if scan_running:
+                self.send_json({"status": "already_running"}, 409)
+                return
+            scan_running = True
 
         def run_scan():
             global scan_running, last_scan_result
-            scan_running = True
             try:
                 result = subprocess.run(
                     [sys.executable, str(PROJECT_DIR / "scan.py")],
@@ -105,7 +115,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                     "returncode": -1,
                 }
             finally:
-                scan_running = False
+                with scan_lock:
+                    scan_running = False
 
         # Run scan in background thread, return immediately
         self.send_json({"status": "started"})
@@ -188,12 +199,16 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             return
         # Remove internal flags
         config.pop("_is_example", None)
-        # Security: reject path traversal in scan_dirs
+        # Security: validate all paths resolve under home directory
         scan_dirs = config.get("repos", {}).get("scan_dirs", [])
         for d in scan_dirs:
-            if ".." in str(d):
-                self.send_json({"error": "Path traversal not allowed"}, 400)
+            if not _is_safe_path(d):
+                self.send_json({"error": f"Invalid path: {d}"}, 400)
                 return
+        broad_root = config.get("repos", {}).get("broad_scan", {}).get("root")
+        if broad_root and not _is_safe_path(broad_root):
+            self.send_json({"error": f"Invalid broad scan root: {broad_root}"}, 400)
+            return
         config_file = PROJECT_DIR / "config.json"
         with open(config_file, "w") as f:
             json.dump(config, f, indent=2)
@@ -207,9 +222,10 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             max_depth = min(int(params.get("max_depth", ["4"])[0]), 6)
         except ValueError:
             max_depth = 4
-        if ".." in root:
-            self.send_json({"error": "Path traversal not allowed"}, 400)
+        if not _is_safe_path(root):
+            self.send_json({"error": "Invalid path"}, 400)
             return
+        root = str(Path(root).resolve())
         if not os.path.isdir(root):
             self.send_json({"error": f"Directory not found: {root}"}, 404)
             return

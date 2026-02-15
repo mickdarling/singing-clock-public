@@ -1024,6 +1024,12 @@ function cssVar(name) {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
 
+function esc(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
 function getChartDefaults() {
   const dim = cssVar('--text-dim');
   const grid = cssVar('--grid');
@@ -2099,15 +2105,15 @@ function renderRepoList(data) {
       const statusClass = daysSince < 30 ? 'active' : daysSince < 90 ? 'stale' : 'inactive';
       const pctWidth = Math.max(2, Math.min(100, r.pct_contribution));
       const cats = (r.top_categories || []).map(c =>
-        `<span class="cat-tag">${c}</span>`
+        `<span class="cat-tag">${esc(c)}</span>`
       ).join('');
       const lastStr = r.last_activity || '--';
       return `<tr>
-        <td><span class="repo-status ${statusClass}"></span>${r.name}</td>
+        <td><span class="repo-status ${statusClass}"></span>${esc(r.name)}</td>
         <td class="col-commits" style="text-align:right">${r.commits.toLocaleString()}</td>
         <td class="col-capability"><span class="repo-pct-bar" style="width:${pctWidth}px;"></span>${r.pct_contribution}%</td>
-        <td class="col-first">${r.first_activity || '--'}</td>
-        <td>${lastStr}</td>
+        <td class="col-first">${esc(r.first_activity || '--')}</td>
+        <td>${esc(lastStr)}</td>
         <td class="col-categories">${cats}</td>
       </tr>`;
     }).join('');
@@ -2162,11 +2168,11 @@ function renderConfigPanel(config) {
   const skipPatterns = repos.skip_patterns || [];
 
   const dirsHtml = scanDirs.map((d, i) =>
-    `<li>${d}<button class="remove-btn" onclick="removeScanDir(${i})" title="Remove" aria-label="Remove ${d}">&times;</button></li>`
+    `<li>${esc(d)}<button class="remove-btn" onclick="removeScanDir(${i})" title="Remove" aria-label="Remove ${esc(d)}">&times;</button></li>`
   ).join('');
 
   const skipsHtml = skipPatterns.map((p, i) =>
-    `<span class="skip-tag">${p}<button class="remove-btn" onclick="removeSkipPattern(${i})" title="Remove" aria-label="Remove ${p}">&times;</button></span>`
+    `<span class="skip-tag">${esc(p)}<button class="remove-btn" onclick="removeSkipPattern(${i})" title="Remove" aria-label="Remove ${esc(p)}">&times;</button></span>`
   ).join('');
 
   const isExample = config._is_example ? '<p style="color:var(--yellow); font-size:0.8rem; margin-bottom:1rem;">Using example config. Changes will create a new config.json file.</p>' : '';
@@ -2316,7 +2322,7 @@ window.discoverRepos = async function() {
     const existingDirs = new Set((_configCache.repos?.scan_dirs || []).map(d => d.replace(/\/$/, '')));
     const items = data.repos.map(r => {
       const checked = existingDirs.has(r.path) ? 'checked disabled' : '';
-      return `<label><input type="checkbox" value="${r.path}" ${checked}> ${r.name} <span style="color:var(--text-dim); font-size:0.7rem;">${r.path}</span></label>`;
+      return `<label><input type="checkbox" value="${esc(r.path)}" ${checked}> ${esc(r.name)} <span style="color:var(--text-dim); font-size:0.7rem;">${esc(r.path)}</span></label>`;
     }).join('');
     container.innerHTML = `<div class="discover-results">${items}</div>
       <button class="btn-discover" style="margin-top:0.5rem;" onclick="addDiscoveredRepos()">Add Selected</button>`;
