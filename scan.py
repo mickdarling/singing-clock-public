@@ -22,7 +22,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
-from collections import Counter, defaultdict
+from collections import defaultdict
 from pathlib import Path
 
 # ─── Configuration ───────────────────────────────────────────────────────
@@ -885,6 +885,154 @@ def fit_models(monthly_data, epoch_date):
     return models
 
 
+# ─── Aggregation Helpers ─────────────────────────────────────────────────
+
+def aggregate_repo_stats(scored_list, total_cap):
+    """Aggregate per-repo statistics from scored commits.
+
+    Returns a list of repo stat dicts sorted by capability (descending).
+    """
+    repo_data = defaultdict(lambda: {
+        "commits": 0, "capability": 0.0,
+        "min_date": None, "max_date": None, "cat_scores": defaultdict(float)
+    })
+    for date, total, cats, message, repo, _ in scored_list:
+        r = repo_data[repo]
+        r["commits"] += 1
+        r["capability"] += total
+        if r["min_date"] is None or date < r["min_date"]:
+            r["min_date"] = date
+        if r["max_date"] is None or date > r["max_date"]:
+            r["max_date"] = date
+        for cat, score in cats.items():
+            r["cat_scores"][cat] += score
+
+    # Disambiguate duplicate basenames
+    basenames = defaultdict(list)
+    for repo_path in repo_data:
+        basenames[Path(repo_path).name].append(repo_path)
+    display_names = {}
+    for name, paths in basenames.items():
+        if len(paths) == 1:
+            display_names[paths[0]] = name
+        else:
+            for p in paths:
+                parent = Path(p).parent.name
+                display_names[p] = f"{name} ({parent})"
+
+    result = []
+    for repo_path, r in repo_data.items():
+        top_cats = sorted(r["cat_scores"], key=r["cat_scores"].get, reverse=True)[:3]
+        pct = (r["capability"] / total_cap * 100) if total_cap else 0
+        result.append({
+            "name": display_names.get(repo_path, Path(repo_path).name),
+            "path": repo_path,
+            "commits": r["commits"],
+            "capability": round(r["capability"]),
+            "pct_contribution": round(pct, 1),
+            "first_activity": r["min_date"].isoformat() if r["min_date"] else None,
+            "last_activity": r["max_date"].isoformat() if r["max_date"] else None,
+            "top_categories": top_cats,
+        })
+    result.sort(key=lambda x: x["capability"], reverse=True)
+    return result
+
+
+def aggregate_monthly(scored_list, epoch_date, end_date, scored_regex=None):
+    """Aggregate scored commits into monthly data.
+
+    Returns (monthly_data, monthly_regex_data, category_monthly) where:
+    - monthly_data: list of month dicts with cumulative stats
+    - monthly_regex_data: list of month dicts for regex-only scoring (empty if scored_regex is None)
+    - category_monthly: dict mapping (year, month) → {category: score}
+    """
+    all_months = []
+    y, m = epoch_date.year, epoch_date.month
+    while (y, m) <= (end_date.year, end_date.month):
+        all_months.append((y, m))
+        m += 1
+        if m > 12:
+            m = 1
+            y += 1
+
+    monthly_commits = defaultdict(int)
+    monthly_capability = defaultdict(float)
+    monthly_cat_scores = defaultdict(lambda: defaultdict(float))
+
+    for date, total, cats, message, repo, _ in scored_list:
+        key = (date.year, date.month)
+        monthly_commits[key] += 1
+        monthly_capability[key] += total
+        for cat, score in cats.items():
+            monthly_cat_scores[key][cat] += score
+
+    # Also aggregate regex-only scores when provided
+    rx_monthly_capability = defaultdict(float)
+    rx_monthly_cat_scores = defaultdict(lambda: defaultdict(float))
+    if scored_regex is not None:
+        for date, total, cats, message, repo, _ in scored_regex:
+            key = (date.year, date.month)
+            rx_monthly_capability[key] += total
+            for cat, score in cats.items():
+                rx_monthly_cat_scores[key][cat] += score
+
+    cum_commits = 0
+    cum_capability = 0
+    rx_cum_capability = 0
+    monthly_data = []
+    monthly_regex_data = []
+
+    for ym in all_months:
+        c = monthly_commits.get(ym, 0)
+        cap = monthly_capability.get(ym, 0)
+        cum_commits += c
+        cum_capability += cap
+
+        cats = monthly_cat_scores.get(ym, {})
+        soph = compute_sophistication(cats)
+
+        monthly_data.append({
+            "month": f"{ym[0]}-{ym[1]:02d}",
+            "commits": c,
+            "capability": round(cap),
+            "sophistication": round(soph, 3),
+            "cumulative_commits": cum_commits,
+            "cumulative_capability": round(cum_capability),
+        })
+
+        # Build regex-only monthly data when enrichment is active
+        if scored_regex is not None:
+            rx_cap = rx_monthly_capability.get(ym, 0)
+            rx_cum_capability += rx_cap
+            rx_cats = rx_monthly_cat_scores.get(ym, {})
+            rx_soph = compute_sophistication(rx_cats)
+            monthly_regex_data.append({
+                "month": f"{ym[0]}-{ym[1]:02d}",
+                "commits": c,
+                "capability": round(rx_cap),
+                "sophistication": round(rx_soph, 3),
+                "cumulative_commits": cum_commits,
+                "cumulative_capability": round(rx_cum_capability),
+            })
+
+    # Smooth sophistication values with EMA
+    raw_soph = [m["sophistication"] for m in monthly_data]
+    smoothed = smooth_sophistication(raw_soph)
+    for i, m in enumerate(monthly_data):
+        m["sophistication"] = round(smoothed[i], 3)
+
+    if monthly_regex_data:
+        rx_raw_soph = [m["sophistication"] for m in monthly_regex_data]
+        rx_smoothed = smooth_sophistication(rx_raw_soph)
+        for i, m in enumerate(monthly_regex_data):
+            m["sophistication"] = round(rx_smoothed[i], 3)
+
+    # Build category_monthly for external use
+    category_monthly = dict(monthly_cat_scores)
+
+    return monthly_data, monthly_regex_data, category_monthly
+
+
 # ─── History Tracking ────────────────────────────────────────────────────
 
 def load_history():
@@ -1443,139 +1591,15 @@ def main(args=None):
     print(f"  {cache_hits} cached, {len(commits) - cache_hits} scored fresh")
 
     # Aggregate per-repo stats
-    def aggregate_repo_stats(scored_list, total_cap):
-        repo_data = defaultdict(lambda: {
-            "commits": 0, "capability": 0.0,
-            "min_date": None, "max_date": None, "cat_scores": defaultdict(float)
-        })
-        for date, total, cats, message, repo, _ in scored_list:
-            r = repo_data[repo]
-            r["commits"] += 1
-            r["capability"] += total
-            if r["min_date"] is None or date < r["min_date"]:
-                r["min_date"] = date
-            if r["max_date"] is None or date > r["max_date"]:
-                r["max_date"] = date
-            for cat, score in cats.items():
-                r["cat_scores"][cat] += score
-
-        # Disambiguate duplicate basenames
-        basenames = defaultdict(list)
-        for repo_path in repo_data:
-            basenames[Path(repo_path).name].append(repo_path)
-        display_names = {}
-        for name, paths in basenames.items():
-            if len(paths) == 1:
-                display_names[paths[0]] = name
-            else:
-                for p in paths:
-                    parent = Path(p).parent.name
-                    display_names[p] = f"{name} ({parent})"
-
-        result = []
-        for repo_path, r in repo_data.items():
-            top_cats = sorted(r["cat_scores"], key=r["cat_scores"].get, reverse=True)[:3]
-            pct = (r["capability"] / total_cap * 100) if total_cap else 0
-            result.append({
-                "name": display_names.get(repo_path, Path(repo_path).name),
-                "path": repo_path,
-                "commits": r["commits"],
-                "capability": round(r["capability"]),
-                "pct_contribution": round(pct, 1),
-                "first_activity": r["min_date"].isoformat() if r["min_date"] else None,
-                "last_activity": r["max_date"].isoformat() if r["max_date"] else None,
-                "top_categories": top_cats,
-            })
-        result.sort(key=lambda x: x["capability"], reverse=True)
-        return result
-
     total_capability_for_repos = sum(s[1] for s in scored)
     repo_stats = aggregate_repo_stats(scored, total_capability_for_repos)
 
     # Aggregate by month
     print("Aggregating by month...")
-    all_months = []
-    y, m = epoch_date.year, epoch_date.month
-    while (y, m) <= (today.year, today.month):
-        all_months.append((y, m))
-        m += 1
-        if m > 12:
-            m = 1
-            y += 1
-
-    monthly_commits = defaultdict(int)
-    monthly_capability = defaultdict(float)
-    monthly_cat_scores = defaultdict(lambda: defaultdict(float))
-    daily_counts = Counter()
-
-    for date, total, cats, message, repo, _ in scored:
-        key = (date.year, date.month)
-        monthly_commits[key] += 1
-        monthly_capability[key] += total
-        daily_counts[date] += 1
-        for cat, score in cats.items():
-            monthly_cat_scores[key][cat] += score
-
-    # Also aggregate regex-only scores when enrichment is active
-    rx_monthly_capability = defaultdict(float)
-    rx_monthly_cat_scores = defaultdict(lambda: defaultdict(float))
-    if enrich_cache is not None:
-        for date, total, cats, message, repo, _ in scored_regex:
-            key = (date.year, date.month)
-            rx_monthly_capability[key] += total
-            for cat, score in cats.items():
-                rx_monthly_cat_scores[key][cat] += score
-
-    cum_commits = 0
-    cum_capability = 0
-    rx_cum_capability = 0
-    monthly_data = []
-    monthly_regex_data = []
-
-    for ym in all_months:
-        c = monthly_commits.get(ym, 0)
-        cap = monthly_capability.get(ym, 0)
-        cum_commits += c
-        cum_capability += cap
-
-        cats = monthly_cat_scores.get(ym, {})
-        soph = compute_sophistication(cats)
-
-        monthly_data.append({
-            "month": f"{ym[0]}-{ym[1]:02d}",
-            "commits": c,
-            "capability": round(cap),
-            "sophistication": round(soph, 3),
-            "cumulative_commits": cum_commits,
-            "cumulative_capability": round(cum_capability),
-        })
-
-        # Build regex-only monthly data when enrichment is active
-        if enrich_cache is not None:
-            rx_cap = rx_monthly_capability.get(ym, 0)
-            rx_cum_capability += rx_cap
-            rx_cats = rx_monthly_cat_scores.get(ym, {})
-            rx_soph = compute_sophistication(rx_cats)
-            monthly_regex_data.append({
-                "month": f"{ym[0]}-{ym[1]:02d}",
-                "commits": c,
-                "capability": round(rx_cap),
-                "sophistication": round(rx_soph, 3),
-                "cumulative_commits": cum_commits,
-                "cumulative_capability": round(rx_cum_capability),
-            })
-
-    # Smooth sophistication values with EMA
-    raw_soph = [m["sophistication"] for m in monthly_data]
-    smoothed = smooth_sophistication(raw_soph)
-    for i, m in enumerate(monthly_data):
-        m["sophistication"] = round(smoothed[i], 3)
-
-    if monthly_regex_data:
-        rx_raw_soph = [m["sophistication"] for m in monthly_regex_data]
-        rx_smoothed = smooth_sophistication(rx_raw_soph)
-        for i, m in enumerate(monthly_regex_data):
-            m["sophistication"] = round(rx_smoothed[i], 3)
+    scored_regex_arg = scored_regex if enrich_cache is not None else None
+    monthly_data, monthly_regex_data, cat_monthly_raw = aggregate_monthly(
+        scored, epoch_date, today, scored_regex=scored_regex_arg
+    )
 
     # Aggregate by week
     print("Aggregating by week...")
@@ -1604,10 +1628,13 @@ def main(args=None):
 
     # Category breakdown by month
     category_monthly = {}
-    for ym in all_months:
+    for ym, cats in cat_monthly_raw.items():
         key = f"{ym[0]}-{ym[1]:02d}"
-        cats = monthly_cat_scores.get(ym, {})
         category_monthly[key] = {cat: round(cats.get(cat, 0)) for cat in CATEGORIES}
+    # Ensure all months in monthly_data have a category_monthly entry
+    for md in monthly_data:
+        if md["month"] not in category_monthly:
+            category_monthly[md["month"]] = {cat: 0 for cat in CATEGORIES}
 
     # Fit models
     print("\nFitting models...")
@@ -1620,7 +1647,7 @@ def main(args=None):
 
     current = {
         "total_commits": len(commits),
-        "total_capability": round(cum_capability),
+        "total_capability": monthly_data[-1]["cumulative_capability"] if monthly_data else 0,
         "pct_of_asymptote": pct_asymptote,
         "latest_commit_date": latest_date.isoformat(),
         "current_sophistication": current_soph,
