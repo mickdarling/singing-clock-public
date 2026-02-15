@@ -1442,6 +1442,56 @@ def main(args=None):
     save_score_cache(cache)
     print(f"  {cache_hits} cached, {len(commits) - cache_hits} scored fresh")
 
+    # Aggregate per-repo stats
+    def aggregate_repo_stats(scored_list, total_cap):
+        repo_data = defaultdict(lambda: {
+            "commits": 0, "capability": 0.0,
+            "min_date": None, "max_date": None, "cat_scores": defaultdict(float)
+        })
+        for date, total, cats, message, repo, _ in scored_list:
+            r = repo_data[repo]
+            r["commits"] += 1
+            r["capability"] += total
+            if r["min_date"] is None or date < r["min_date"]:
+                r["min_date"] = date
+            if r["max_date"] is None or date > r["max_date"]:
+                r["max_date"] = date
+            for cat, score in cats.items():
+                r["cat_scores"][cat] += score
+
+        # Disambiguate duplicate basenames
+        basenames = defaultdict(list)
+        for repo_path in repo_data:
+            basenames[Path(repo_path).name].append(repo_path)
+        display_names = {}
+        for name, paths in basenames.items():
+            if len(paths) == 1:
+                display_names[paths[0]] = name
+            else:
+                for p in paths:
+                    parent = Path(p).parent.name
+                    display_names[p] = f"{name} ({parent})"
+
+        result = []
+        for repo_path, r in repo_data.items():
+            top_cats = sorted(r["cat_scores"], key=r["cat_scores"].get, reverse=True)[:3]
+            pct = (r["capability"] / total_cap * 100) if total_cap else 0
+            result.append({
+                "name": display_names.get(repo_path, Path(repo_path).name),
+                "path": repo_path,
+                "commits": r["commits"],
+                "capability": round(r["capability"]),
+                "pct_contribution": round(pct, 1),
+                "first_activity": r["min_date"].isoformat() if r["min_date"] else None,
+                "last_activity": r["max_date"].isoformat() if r["max_date"] else None,
+                "top_categories": top_cats,
+            })
+        result.sort(key=lambda x: x["capability"], reverse=True)
+        return result
+
+    total_capability_for_repos = sum(s[1] for s in scored)
+    repo_stats = aggregate_repo_stats(scored, total_capability_for_repos)
+
     # Aggregate by month
     print("Aggregating by month...")
     all_months = []
@@ -1595,6 +1645,7 @@ def main(args=None):
         "current": current,
         "category_monthly": category_monthly,
         "convergence_history": convergence_history,
+        "repos": repo_stats,
     }
 
     # Include regex-only monthly data for dual-scoring overlays

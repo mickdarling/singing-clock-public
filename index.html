@@ -641,6 +641,68 @@
     to { opacity: 1; transform: translateY(0); }
   }
 
+  /* Repo list and config panel */
+  .repo-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+  .repo-table th {
+    text-align: left; padding: 0.5rem 0.75rem; color: var(--text-dim);
+    font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--border); white-space: nowrap;
+  }
+  .repo-table td { padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); color: var(--text); }
+  .repo-table tr:last-child td { border-bottom: none; }
+  .repo-status { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 0.5rem; vertical-align: middle; }
+  .repo-status.active { background: var(--teal); }
+  .repo-status.stale { background: var(--yellow); }
+  .repo-status.inactive { background: var(--text-dim); }
+  .repo-pct-bar { display: inline-block; height: 4px; border-radius: 2px; background: var(--teal); vertical-align: middle; margin-right: 0.5rem; }
+  .repo-show-all { background: none; border: 1px solid var(--border); color: var(--text-dim); padding: 0.4rem 1rem; border-radius: 4px; cursor: pointer; font-size: 0.75rem; margin-top: 0.75rem; }
+  .repo-show-all:hover { border-color: var(--text); color: var(--text); }
+
+  .config-panel { margin-top: 1rem; }
+  .config-section { margin-bottom: 1.25rem; }
+  .config-section h4 { font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
+  .config-list { list-style: none; padding: 0; }
+  .config-list li {
+    display: flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.5rem;
+    border: 1px solid var(--border); border-radius: 4px; margin-bottom: 0.35rem;
+    font-size: 0.8rem; font-family: monospace; color: var(--text);
+  }
+  .config-list li .remove-btn {
+    margin-left: auto; background: none; border: none; color: var(--red);
+    cursor: pointer; font-size: 1rem; padding: 0 0.25rem; line-height: 1;
+  }
+  .config-list li .remove-btn:hover { opacity: 0.7; }
+  .config-add-row { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+  .config-add-row input {
+    flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
+    color: var(--text); padding: 0.4rem 0.6rem; font-size: 0.8rem; font-family: monospace;
+  }
+  .config-add-row button {
+    background: var(--teal); color: #000; border: none; border-radius: 4px;
+    padding: 0.4rem 0.8rem; cursor: pointer; font-size: 0.75rem; font-weight: 600;
+  }
+  .config-add-row button:hover { opacity: 0.85; }
+  .skip-tag {
+    display: inline-flex; align-items: center; gap: 0.3rem;
+    background: var(--bg); border: 1px solid var(--border); border-radius: 12px;
+    padding: 0.2rem 0.6rem; margin: 0.15rem; font-size: 0.75rem; color: var(--text);
+  }
+  .skip-tag .remove-btn { background: none; border: none; color: var(--red); cursor: pointer; font-size: 0.85rem; padding: 0; line-height: 1; }
+  .discover-results { max-height: 250px; overflow-y: auto; border: 1px solid var(--border); border-radius: 4px; padding: 0.5rem; margin-top: 0.5rem; }
+  .discover-results label { display: block; padding: 0.25rem 0.5rem; font-size: 0.8rem; cursor: pointer; font-family: monospace; }
+  .discover-results label:hover { background: var(--border); border-radius: 3px; }
+  .config-actions { display: flex; gap: 0.75rem; margin-top: 1rem; flex-wrap: wrap; }
+  .config-actions .btn-save {
+    background: var(--teal); color: #000; border: none; border-radius: 6px;
+    padding: 0.5rem 1.25rem; cursor: pointer; font-weight: 600; font-size: 0.8rem;
+  }
+  .config-actions .btn-save:hover { opacity: 0.85; }
+  .config-actions .btn-discover {
+    background: none; border: 1px solid var(--border); color: var(--text);
+    border-radius: 6px; padding: 0.5rem 1.25rem; cursor: pointer; font-size: 0.8rem;
+  }
+  .config-actions .btn-discover:hover { border-color: var(--text); }
+
   /* Tablet landscape and smaller */
   @media (max-width: 900px) {
     .charts { grid-template-columns: 1fr; }
@@ -650,6 +712,7 @@
 
   /* Tablet portrait */
   @media (max-width: 768px) {
+    .repo-table .col-capability, .repo-table .col-first { display: none; }
     body { padding: 1rem; }
 
     .hero { padding: 2rem 0.75rem; }
@@ -680,6 +743,7 @@
 
   /* Phone */
   @media (max-width: 480px) {
+    .repo-table .col-categories, .repo-table .col-commits { display: none; }
     body { padding: 0.5rem; }
 
     .hero { padding: 1.5rem 0.5rem; margin-bottom: 1rem; }
@@ -798,6 +862,19 @@
   <span style="color: var(--text-dim); font-size: 0.7rem; margin-left: auto;">Scoring mode: <strong id="scoring-mode-label">--</strong></span>
 </div>
 
+<section id="project-context" class="chart-card" style="max-width:1400px; margin:0 auto 1.5rem; display:none;" aria-label="Project context">
+  <details open id="project-context-details">
+    <summary style="cursor:pointer; font-weight:700; font-size:1.1rem; color:var(--text);">Project Goal</summary>
+    <div id="project-context-body" style="margin-top:0.75rem; line-height:1.6; font-size:0.85rem; color:var(--text-dim);">
+      <p id="project-goal-text">This dashboard tracks convergence across <strong id="ctx-repo-count">--</strong> repositories toward a unified capability target. The scoring rubric measures 9 capability categories weighted by sophistication level.</p>
+      <div id="project-goal-custom"></div>
+      <p style="margin-top:0.5rem;">
+        <strong>What convergence means:</strong> The logistic model predicts when cumulative capability will plateau (no more new capabilities being added) and commit rate will approach zero (the work is done). The <em>convergence date</em> is where these signals meet &mdash; the project's predicted graduation.
+      </p>
+    </div>
+  </details>
+</section>
+
 <section class="progress-bar-container" aria-label="Capability progress">
   <h2>Capability Progress</h2>
   <div class="chart-subtitle">Logistic model fit: current % of predicted maximum capability</div>
@@ -818,6 +895,37 @@
     <div class="chart-subtitle">How the predicted graduation date shifts over successive scans</div>
     <div class="chart-container" style="height: 300px;"><canvas id="chart-drift" role="img" aria-label="Convergence date drift chart showing prediction changes over time"></canvas></div>
     <div id="drift-summary" style="margin-top:1rem; font-size:0.85rem; color:var(--text-dim); text-align:center;"></div>
+    <details style="margin-top:0.75rem; font-size:0.8rem; color:var(--text-dim);">
+      <summary style="cursor:pointer; color:var(--text); font-weight:600;">What do these lines mean?</summary>
+      <div style="margin-top:0.5rem; line-height:1.6; max-width:700px;">
+        <p>Each line tracks a different milestone prediction across successive scans. Stable lines = confident predictions. Movement = the model is revising its estimate.</p>
+        <ul style="list-style:none; padding:0; margin:0.5rem 0;">
+          <li><span style="color:#ffd93d;">&#9644;</span> <strong>Convergence</strong> &mdash; The overall graduation date: when capability plateaus and commit rate approaches zero. This is the primary prediction.</li>
+          <li><span style="color:#ff6b6b;">&#9644;</span> <strong>Commit Zero</strong> &mdash; When the logistic model predicts commit rate drops to near zero (work is effectively done).</li>
+          <li><span style="color:#4ecdc4;">&#9644;</span> <strong>Capability 95%</strong> &mdash; When 95% of the predicted maximum capability score is reached (functionally self-sufficient).</li>
+          <li><span style="color:#58a6ff;">&#9644;</span> <strong>Capability 99%</strong> &mdash; When 99% of the predicted maximum is reached (diminishing returns, near-complete).</li>
+          <li><span style="color:#b380ff;">&#9644;</span> <strong>Sophistication 100%</strong> &mdash; When the proportion of advanced work (agents, self-modify, meta) plateaus. Often the last milestone to converge.</li>
+        </ul>
+        <p>When these lines cluster together, the project is on a clear trajectory. When they diverge, the model is uncertain about different aspects of completion.</p>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section style="max-width:1400px; margin:0 auto 1.5rem;">
+  <div class="chart-card">
+    <details id="repo-details">
+      <summary style="cursor:pointer;"><h2 style="display:inline; font-size:0.85rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.1em;">Repositories</h2></summary>
+      <div id="repo-list-container" style="margin-top:1rem;">
+        <p style="color:var(--text-dim); font-size:0.85rem;">Run a scan to see per-repo stats.</p>
+      </div>
+      <details id="config-details" style="margin-top:1.25rem;">
+        <summary style="cursor:pointer; font-size:0.85rem; color:var(--text-dim); font-weight:600;">Configure Scan Settings</summary>
+        <div id="config-panel" class="config-panel">
+          <p style="color:var(--text-dim); font-size:0.85rem;">Loading configuration...</p>
+        </div>
+      </details>
+    </details>
   </div>
 </section>
 
@@ -889,6 +997,21 @@
 
       <dt>Graduation</dt>
       <dd>When the project reaches the convergence point — capability near ceiling and commit rate approaching zero.</dd>
+
+      <dt>Convergence Date Drift</dt>
+      <dd>How the predicted graduation date changes across successive scans. Stable = confident prediction. Moving closer = ahead of schedule. Drifting further = slipping.</dd>
+
+      <dt>Commit Zero</dt>
+      <dd>The date when the logistic model predicts commit rate drops to near zero — the work is effectively done.</dd>
+
+      <dt>Capability 95% / 99%</dt>
+      <dd>When the cumulative capability score reaches 95% or 99% of the predicted asymptote. 95% = functionally self-sufficient. 99% = diminishing returns.</dd>
+
+      <dt>Sophistication 100%</dt>
+      <dd>When the ratio of advanced work (agents, self-modify, meta categories) plateaus. Often the last milestone to converge because advanced capabilities are built on top of foundational work.</dd>
+
+      <dt>Drift Rate</dt>
+      <dd>How fast the predicted date is changing per scan. Positive drift = target date slipping further away. Negative drift = converging faster than expected.</dd>
     </dl>
   </div>
 </div>
@@ -899,6 +1022,12 @@ let DATA = null;
 
 function cssVar(name) {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+function esc(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
 }
 
 function getChartDefaults() {
@@ -1710,131 +1839,183 @@ function renderConvergenceChart(data) {
 
 // ─── Drift Chart ────────────────────────────────────────────────────────
 function renderDriftChart(data) {
-  const history = data.convergence_history || [];
-  if (history.length < 1) return;
+  const rawHistory = data.convergence_history || [];
+  if (rawHistory.length < 1) return;
 
   document.getElementById('drift-section').style.display = 'block';
 
-  const labels = history.map(h => {
-    const d = new Date(h.scan_time);
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  });
+  // Deduplicate: collapse entries with identical convergence_date + total_commits
+  const history = [];
+  for (const h of rawHistory) {
+    const prev = history[history.length - 1];
+    if (prev && prev.convergence_date === h.convergence_date
+        && prev.total_commits === h.total_commits) continue;
+    history.push(h);
+  }
+  if (history.length < 1) return;
 
-  const daysUntil = history.map(h => h.days_until_convergence);
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const nowMs = now.getTime();
+  const DAY_MS = 86400000;
 
-  // Component date lines: convert each target date to "days from today at scan time"
-  function dateToDaysFrom(targetDate, scanTime) {
-    if (!targetDate) return null;
-    const target = new Date(targetDate + 'T00:00:00');
-    const scan = new Date(scanTime);
-    scan.setHours(0,0,0,0);
-    return Math.round((target - scan) / 86400000);
+  // Days from today for a date string (positive = future)
+  function daysFromNow(dateStr) {
+    if (!dateStr) return null;
+    return Math.round((new Date(dateStr + 'T00:00:00').getTime() - nowMs) / DAY_MS);
   }
 
-  const commitZero = history.map(h => dateToDaysFrom(h.component_dates?.commit_zero, h.scan_time));
-  const cap95 = history.map(h => dateToDaysFrom(h.component_dates?.capability_95, h.scan_time));
-  const cap99 = history.map(h => dateToDaysFrom(h.component_dates?.capability_99, h.scan_time));
-  const soph100 = history.map(h => dateToDaysFrom(h.component_dates?.sophistication_100, h.scan_time));
+  // Calendar date for a days-from-today value
+  function daysToDateStr(days) {
+    const d = new Date(nowMs + days * DAY_MS);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+  function daysToDateShort(days) {
+    const d = new Date(nowMs + days * DAY_MS);
+    return d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+  }
 
-  // Trend summary
+  // Scan labels: indexed with date
+  const scanLabels = history.map((h, i) => {
+    const d = new Date(h.scan_time);
+    return '#' + (i + 1) + ' (' + d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ')';
+  });
+
+  // Component data as days-from-today
+  const COMPONENTS = [
+    { key: 'convergence', get: h => h.convergence_date, label: 'Convergence',
+      color: '#ffd93d', width: 3, radius: 6, dash: null },
+    { key: 'commit_zero', get: h => h.component_dates?.commit_zero, label: 'Commit Zero',
+      color: '#ff6b6b', width: 2, radius: 4, dash: [6, 3] },
+    { key: 'cap95', get: h => h.component_dates?.capability_95, label: 'Capability 95%',
+      color: '#4ecdc4', width: 2, radius: 4, dash: [6, 3] },
+    { key: 'cap99', get: h => h.component_dates?.capability_99, label: 'Capability 99%',
+      color: '#58a6ff', width: 2, radius: 4, dash: [6, 3] },
+    { key: 'soph100', get: h => h.component_dates?.sophistication_100, label: 'Sophistication 100%',
+      color: '#b380ff', width: 2, radius: 4, dash: [6, 3] },
+  ];
+
+  const componentData = COMPONENTS.map(c => ({
+    ...c,
+    days: history.map(h => daysFromNow(c.get(h))),
+    dates: history.map(h => c.get(h)),
+  }));
+
+  // Trend summary with drift rate
+  const convDays = componentData[0].days;
   if (history.length >= 2) {
-    const first = daysUntil[0];
-    const last = daysUntil[daysUntil.length - 1];
+    const first = convDays[0];
+    const last = convDays[convDays.length - 1];
     const scans = history.length - 1;
-    const drift = (first - last) / scans;
+    const totalDrift = last - first; // positive = sliding further, negative = getting closer
+    const driftPerScan = totalDrift / scans;
     const summaryEl = document.getElementById('drift-summary');
-    if (drift > 0) {
-      summaryEl.innerHTML = `Convergence is moving <strong style="color:var(--teal);">${drift.toFixed(1)} days closer</strong> per scan (${scans} scan${scans > 1 ? 's' : ''})`;
-    } else if (drift < 0) {
-      summaryEl.innerHTML = `Convergence is drifting <strong style="color:var(--red);">${Math.abs(drift).toFixed(1)} days further</strong> per scan (${scans} scan${scans > 1 ? 's' : ''})`;
+    const targetDate = daysToDateStr(last);
+    if (totalDrift < 0) {
+      summaryEl.innerHTML = `Target: <strong>${targetDate}</strong> (${last}d) &mdash; moving <strong style="color:var(--teal);">${Math.abs(driftPerScan).toFixed(1)}d closer</strong> per scan &mdash; ${Math.abs(totalDrift)}d improvement over ${scans} scan${scans > 1 ? 's' : ''}`;
+    } else if (totalDrift > 0) {
+      summaryEl.innerHTML = `Target: <strong>${targetDate}</strong> (${last}d) &mdash; drifting <strong style="color:var(--red);">${driftPerScan.toFixed(1)}d further</strong> per scan &mdash; ${totalDrift}d slippage over ${scans} scan${scans > 1 ? 's' : ''}`;
     } else {
-      summaryEl.innerHTML = `Convergence date is <strong>stable</strong> across ${scans} scan${scans > 1 ? 's' : ''}`;
+      summaryEl.innerHTML = `Target: <strong>${targetDate}</strong> (${last}d) &mdash; <strong>stable</strong> across ${scans} scan${scans > 1 ? 's' : ''}`;
     }
   }
 
+  // Build datasets
+  const datasets = componentData.map(c => ({
+    label: c.label,
+    data: c.days,
+    borderColor: c.color,
+    borderWidth: c.width,
+    borderDash: c.dash || [],
+    pointRadius: c.radius,
+    pointHoverRadius: c.radius + 2,
+    pointBackgroundColor: c.color,
+    fill: false,
+    tension: 0,
+  }));
+
   new Chart(document.getElementById('chart-drift'), {
     type: 'line',
-    data: {
-      labels,
-      datasets: [
-        {
-          label: 'Days Until Convergence',
-          data: daysUntil,
-          borderColor: '#ffd93d',
-          backgroundColor: 'rgba(255, 217, 61, 0.1)',
-          borderWidth: 3,
-          pointRadius: 5,
-          pointBackgroundColor: '#ffd93d',
-          fill: true,
-          tension: 0.3,
-        },
-        {
-          label: 'Commit Zero',
-          data: commitZero,
-          borderColor: '#ff6b6b',
-          borderWidth: 1.5,
-          borderDash: [6, 3],
-          pointRadius: 3,
-          fill: false,
-          tension: 0.3,
-        },
-        {
-          label: 'Capability 95%',
-          data: cap95,
-          borderColor: '#4ecdc4',
-          borderWidth: 1.5,
-          borderDash: [6, 3],
-          pointRadius: 3,
-          fill: false,
-          tension: 0.3,
-        },
-        {
-          label: 'Capability 99%',
-          data: cap99,
-          borderColor: '#58a6ff',
-          borderWidth: 1.5,
-          borderDash: [6, 3],
-          pointRadius: 3,
-          fill: false,
-          tension: 0.3,
-        },
-        {
-          label: 'Sophistication 100%',
-          data: soph100,
-          borderColor: '#b380ff',
-          borderWidth: 1.5,
-          borderDash: [6, 3],
-          pointRadius: 3,
-          fill: false,
-          tension: 0.3,
-        },
-      ],
-    },
+    data: { labels: scanLabels, datasets },
     options: {
       ...CHART_DEFAULTS,
+      interaction: { mode: 'index', intersect: false },
       plugins: {
         ...CHART_DEFAULTS.plugins,
+        annotation: {
+          annotations: {
+            today: {
+              type: 'line', yMin: 0, yMax: 0,
+              borderColor: cssVar('--text-dim'), borderWidth: 1, borderDash: [4, 4],
+              label: { display: true, content: 'Today', position: 'start',
+                color: cssVar('--text-dim'), font: { size: 10 }, backgroundColor: 'transparent' },
+            },
+          },
+        },
         tooltip: {
+          mode: 'index', intersect: false,
           callbacks: {
-            afterBody(items) {
+            title(items) {
               const idx = items[0]?.dataIndex;
               if (idx === undefined) return '';
               const h = history[idx];
-              const lines = [];
-              if (h.convergence_date) lines.push(`Target: ${h.convergence_date}`);
-              if (h.pct_of_asymptote) lines.push(`Capability: ${h.pct_of_asymptote}%`);
-              if (h.total_commits) lines.push(`Commits: ${h.total_commits.toLocaleString()}`);
-              return lines.join('\n');
+              const d = new Date(h.scan_time);
+              return 'Scan #' + (idx + 1) + ' \u2014 ' + d.toLocaleDateString('en-US', {
+                month: 'short', day: 'numeric', year: 'numeric',
+                hour: 'numeric', minute: '2-digit',
+              });
+            },
+            label(ctx) {
+              const days = ctx.raw;
+              if (days === null) return '  ' + ctx.dataset.label + ': N/A';
+              const comp = componentData[ctx.datasetIndex];
+              const dateStr = comp.dates[ctx.dataIndex] || 'N/A';
+              const firstDays = comp.days[0];
+              const delta = days - firstDays;
+              const deltaStr = delta === 0 ? 'stable' :
+                delta > 0 ? '+' + delta + 'd' : delta + 'd';
+              return '  ' + ctx.dataset.label + ': ' + dateStr + ' (' + days + 'd, ' + deltaStr + ')';
+            },
+            footer(items) {
+              const idx = items[0]?.dataIndex;
+              if (idx === undefined) return '';
+              const h = history[idx];
+              const parts = [];
+              if (h.pct_of_asymptote) parts.push('Capability: ' + h.pct_of_asymptote + '%');
+              if (h.total_commits) parts.push('Commits: ' + h.total_commits.toLocaleString());
+              return parts.join(' | ');
             },
           },
         },
       },
       scales: {
-        ...CHART_DEFAULTS.scales,
+        x: {
+          ...CHART_DEFAULTS.scales.x,
+          ticks: { ...CHART_DEFAULTS.scales.x.ticks, maxRotation: 0 },
+        },
         y: {
-          ...CHART_DEFAULTS.scales.y,
-          title: { display: true, text: 'Days remaining', color: cssVar('--text-dim'), font: { size: 11 } },
-          reverse: false,
+          type: 'linear',
+          position: 'left',
+          grid: { color: cssVar('--grid') },
+          ticks: {
+            color: cssVar('--text-dim'),
+            callback(value) { return value + 'd'; },
+          },
+          title: { display: true, text: 'Days from today', color: cssVar('--text-dim'), font: { size: 11 } },
+        },
+        yDate: {
+          type: 'linear',
+          position: 'right',
+          grid: { drawOnChartArea: false },
+          ticks: {
+            color: cssVar('--text-dim'),
+            callback(value) { return daysToDateShort(value); },
+          },
+          title: { display: true, text: 'Predicted date', color: cssVar('--text-dim'), font: { size: 11 } },
+          afterDataLimits(axis) {
+            const left = axis.chart.scales.y;
+            if (left) { axis.min = left.min; axis.max = left.max; }
+          },
         },
       },
     },
@@ -1902,6 +2083,276 @@ function updateScoringOverlays() {
   }
 }
 
+// ─── Repo List & Config ─────────────────────────────────────────────────
+let _configCache = null;
+const REPO_DISPLAY_LIMIT = 20;
+
+function renderRepoList(data) {
+  const container = document.getElementById('repo-list-container');
+  if (!data.repos || !data.repos.length) {
+    container.innerHTML = '<p style="color:var(--text-dim); font-size:0.85rem;">Run a scan to see per-repo stats.</p>';
+    return;
+  }
+  const repos = data.repos;
+  const now = new Date();
+  let showAll = false;
+
+  function buildTable(limit) {
+    const visible = limit ? repos.slice(0, limit) : repos;
+    let rows = visible.map(r => {
+      const last = r.last_activity ? new Date(r.last_activity) : null;
+      const daysSince = last ? Math.floor((now - last) / 86400000) : 999;
+      const statusClass = daysSince < 30 ? 'active' : daysSince < 90 ? 'stale' : 'inactive';
+      const pctWidth = Math.max(2, Math.min(100, r.pct_contribution));
+      const cats = (r.top_categories || []).map(c =>
+        `<span class="cat-tag">${esc(c)}</span>`
+      ).join('');
+      const lastStr = r.last_activity || '--';
+      return `<tr>
+        <td><span class="repo-status ${statusClass}"></span>${esc(r.name)}</td>
+        <td class="col-commits" style="text-align:right">${r.commits.toLocaleString()}</td>
+        <td class="col-capability"><span class="repo-pct-bar" style="width:${pctWidth}px;"></span>${r.pct_contribution}%</td>
+        <td class="col-first">${esc(r.first_activity || '--')}</td>
+        <td>${esc(lastStr)}</td>
+        <td class="col-categories">${cats}</td>
+      </tr>`;
+    }).join('');
+
+    let html = `<table class="repo-table">
+      <thead><tr>
+        <th>Repository</th>
+        <th class="col-commits" style="text-align:right">Commits</th>
+        <th class="col-capability">Capability</th>
+        <th class="col-first">First Active</th>
+        <th>Last Active</th>
+        <th class="col-categories">Top Categories</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+    if (repos.length > REPO_DISPLAY_LIMIT) {
+      const label = showAll ? `Show top ${REPO_DISPLAY_LIMIT}` : `Show all ${repos.length} repos`;
+      html += `<button class="repo-show-all" onclick="toggleRepoList()">${label}</button>`;
+    }
+    return html;
+  }
+
+  container.innerHTML = buildTable(REPO_DISPLAY_LIMIT);
+
+  window.toggleRepoList = function() {
+    showAll = !showAll;
+    container.innerHTML = buildTable(showAll ? null : REPO_DISPLAY_LIMIT);
+  };
+}
+
+async function loadConfig() {
+  if (_configCache) return _configCache;
+  try {
+    const resp = await fetch('/api/config');
+    if (!resp.ok) throw new Error('Failed to load config');
+    _configCache = await resp.json();
+  } catch (e) {
+    _configCache = {
+      _is_example: true,
+      repos: { scan_dirs: [], broad_scan: { root: '~/Developer', max_depth: 4 }, skip_patterns: [] },
+      goal: { name: '', inception_date: '' },
+    };
+  }
+  return _configCache;
+}
+
+function renderConfigPanel(config) {
+  const panel = document.getElementById('config-panel');
+  const repos = config.repos || {};
+  const scanDirs = repos.scan_dirs || [];
+  const broadScan = repos.broad_scan || { root: '~/Developer', max_depth: 4 };
+  const skipPatterns = repos.skip_patterns || [];
+
+  const dirsHtml = scanDirs.map((d, i) =>
+    `<li>${esc(d)}<button class="remove-btn" onclick="removeScanDir(${i})" title="Remove" aria-label="Remove ${esc(d)}">&times;</button></li>`
+  ).join('');
+
+  const skipsHtml = skipPatterns.map((p, i) =>
+    `<span class="skip-tag">${esc(p)}<button class="remove-btn" onclick="removeSkipPattern(${i})" title="Remove" aria-label="Remove ${esc(p)}">&times;</button></span>`
+  ).join('');
+
+  const isExample = config._is_example ? '<p style="color:var(--yellow); font-size:0.8rem; margin-bottom:1rem;">Using example config. Changes will create a new config.json file.</p>' : '';
+
+  panel.innerHTML = `${isExample}
+    <div class="config-section">
+      <h4>Scan Directories</h4>
+      <ul class="config-list" id="scan-dirs-list">${dirsHtml || '<li style="color:var(--text-dim); border:none; padding-left:0;">None configured (using broad scan only)</li>'}</ul>
+      <div class="config-add-row">
+        <input type="text" id="new-scan-dir" placeholder="/path/to/repos" aria-label="New scan directory">
+        <button onclick="addScanDir()">Add</button>
+      </div>
+    </div>
+    <div class="config-section">
+      <h4>Broad Scan</h4>
+      <div class="config-add-row">
+        <input type="text" id="broad-scan-root" value="${broadScan.root}" placeholder="~/Developer" aria-label="Broad scan root directory">
+        <label style="font-size:0.8rem; color:var(--text-dim); white-space:nowrap; display:flex; align-items:center; gap:0.3rem;">
+          Depth: <input type="number" id="broad-scan-depth" value="${broadScan.max_depth}" min="1" max="6" style="width:3rem; background:var(--bg); border:1px solid var(--border); border-radius:4px; color:var(--text); padding:0.3rem; font-size:0.8rem;" aria-label="Broad scan max depth">
+        </label>
+      </div>
+    </div>
+    <div class="config-section">
+      <h4>Skip Patterns</h4>
+      <div id="skip-patterns-container">${skipsHtml || '<span style="color:var(--text-dim); font-size:0.8rem;">None</span>'}</div>
+      <div class="config-add-row" style="margin-top:0.5rem;">
+        <input type="text" id="new-skip-pattern" placeholder="pattern-to-skip" aria-label="New skip pattern">
+        <button onclick="addSkipPattern()">Add</button>
+      </div>
+    </div>
+    <div class="config-actions">
+      <button class="btn-save" onclick="saveConfigAndRescan()">Save &amp; Rescan</button>
+      <button class="btn-discover" onclick="discoverRepos()">Discover Repos...</button>
+    </div>
+    <div id="discover-container"></div>
+    <div id="config-status" style="margin-top:0.5rem; font-size:0.8rem;"></div>`;
+}
+
+function getCurrentConfig() {
+  const config = JSON.parse(JSON.stringify(_configCache || {}));
+  const root = document.getElementById('broad-scan-root');
+  const depth = document.getElementById('broad-scan-depth');
+  if (root && depth) {
+    if (!config.repos) config.repos = {};
+    config.repos.broad_scan = {
+      root: root.value,
+      max_depth: parseInt(depth.value) || 4,
+    };
+  }
+  return config;
+}
+
+window.addScanDir = function() {
+  const input = document.getElementById('new-scan-dir');
+  const dir = input.value.trim();
+  if (!dir) return;
+  if (!_configCache.repos) _configCache.repos = {};
+  if (!_configCache.repos.scan_dirs) _configCache.repos.scan_dirs = [];
+  _configCache.repos.scan_dirs.push(dir);
+  input.value = '';
+  renderConfigPanel(_configCache);
+};
+
+window.removeScanDir = function(index) {
+  _configCache.repos.scan_dirs.splice(index, 1);
+  renderConfigPanel(_configCache);
+};
+
+window.addSkipPattern = function() {
+  const input = document.getElementById('new-skip-pattern');
+  const pat = input.value.trim();
+  if (!pat) return;
+  if (!_configCache.repos) _configCache.repos = {};
+  if (!_configCache.repos.skip_patterns) _configCache.repos.skip_patterns = [];
+  _configCache.repos.skip_patterns.push(pat);
+  input.value = '';
+  renderConfigPanel(_configCache);
+};
+
+window.removeSkipPattern = function(index) {
+  _configCache.repos.skip_patterns.splice(index, 1);
+  renderConfigPanel(_configCache);
+};
+
+window.saveConfigAndRescan = async function() {
+  const status = document.getElementById('config-status');
+  const config = getCurrentConfig();
+  status.textContent = 'Saving...';
+  status.style.color = cssVar('--text-dim');
+  try {
+    const resp = await fetch('/api/config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config),
+    });
+    if (!resp.ok) {
+      const err = await resp.json();
+      throw new Error(err.error || 'Save failed');
+    }
+    _configCache = config;
+    status.textContent = 'Saved. Starting rescan...';
+    status.style.color = cssVar('--teal');
+    // Trigger rescan
+    await fetch('/api/scan', { method: 'POST' });
+    // Poll for completion
+    let attempts = 0;
+    const poll = setInterval(async () => {
+      attempts++;
+      try {
+        const s = await fetch('/api/status');
+        const d = await s.json();
+        if (!d.scan_running) {
+          clearInterval(poll);
+          status.textContent = 'Rescan complete. Reloading...';
+          setTimeout(() => location.reload(), 500);
+        } else {
+          status.textContent = `Scanning... (${attempts * 3}s)`;
+        }
+      } catch {
+        if (attempts > 100) clearInterval(poll);
+      }
+    }, 3000);
+  } catch (e) {
+    status.textContent = 'Error: ' + e.message;
+    status.style.color = cssVar('--red');
+  }
+};
+
+window.discoverRepos = async function() {
+  const container = document.getElementById('discover-container');
+  const rootInput = document.getElementById('broad-scan-root');
+  const root = rootInput ? rootInput.value : '~/Developer';
+  const depthInput = document.getElementById('broad-scan-depth');
+  const depth = depthInput ? depthInput.value : '4';
+  container.innerHTML = '<p style="font-size:0.8rem; color:var(--text-dim);">Discovering repos...</p>';
+  try {
+    const resp = await fetch(`/api/repos/discover?root=${encodeURIComponent(root)}&max_depth=${depth}`);
+    if (!resp.ok) {
+      const err = await resp.json();
+      throw new Error(err.error || 'Discovery failed');
+    }
+    const data = await resp.json();
+    if (!data.repos.length) {
+      container.innerHTML = '<p style="font-size:0.8rem; color:var(--text-dim);">No repositories found.</p>';
+      return;
+    }
+    const existingDirs = new Set((_configCache.repos?.scan_dirs || []).map(d => d.replace(/\/$/, '')));
+    const items = data.repos.map(r => {
+      const checked = existingDirs.has(r.path) ? 'checked disabled' : '';
+      return `<label><input type="checkbox" value="${esc(r.path)}" ${checked}> ${esc(r.name)} <span style="color:var(--text-dim); font-size:0.7rem;">${esc(r.path)}</span></label>`;
+    }).join('');
+    container.innerHTML = `<div class="discover-results">${items}</div>
+      <button class="btn-discover" style="margin-top:0.5rem;" onclick="addDiscoveredRepos()">Add Selected</button>`;
+  } catch (e) {
+    container.innerHTML = `<p style="font-size:0.8rem; color:var(--red);">Error: ${e.message}</p>`;
+  }
+};
+
+window.addDiscoveredRepos = function() {
+  const container = document.getElementById('discover-container');
+  const checkboxes = container.querySelectorAll('input[type="checkbox"]:checked:not(:disabled)');
+  if (!_configCache.repos) _configCache.repos = {};
+  if (!_configCache.repos.scan_dirs) _configCache.repos.scan_dirs = [];
+  checkboxes.forEach(cb => {
+    if (!_configCache.repos.scan_dirs.includes(cb.value)) {
+      _configCache.repos.scan_dirs.push(cb.value);
+    }
+  });
+  container.innerHTML = '';
+  renderConfigPanel(_configCache);
+};
+
+// Lazy-load config when config details is opened
+document.getElementById('config-details').addEventListener('toggle', async function() {
+  if (this.open) {
+    const config = await loadConfig();
+    renderConfigPanel(config);
+  }
+});
+
 // ─── Init ───────────────────────────────────────────────────────────────
 async function init() {
   DATA = await loadData();
@@ -1929,6 +2380,19 @@ async function init() {
   document.getElementById('stat-repos').textContent = data.repos_scanned || '--';
   document.getElementById('stat-day').textContent = data.current?.days_since_inception || '--';
 
+  // Project context
+  const ctxSection = document.getElementById('project-context');
+  if (ctxSection) {
+    ctxSection.style.display = 'block';
+    document.getElementById('ctx-repo-count').textContent = data.repos_scanned || '--';
+    // If data.json includes a goal description, show it
+    const goalCustom = document.getElementById('project-goal-custom');
+    if (data.goal) {
+      goalCustom.innerHTML = '<p style="margin-top:0.5rem;"><strong>Goal:</strong> ' +
+        data.goal.replace(/</g, '&lt;') + '</p>';
+    }
+  }
+
   // Progress bar
   const fill = document.getElementById('progress-fill');
   const bar = document.getElementById('progress-bar');
@@ -1945,6 +2409,7 @@ async function init() {
   try { renderSophisticationChart(data); } catch (e) { console.warn('Sophistication chart error:', e); }
   try { renderConvergenceChart(data); } catch (e) { console.warn('Convergence chart error:', e); }
   try { renderIssueImpactTable(data); } catch (e) { console.warn('Issue impact table error:', e); }
+  try { renderRepoList(data); } catch (e) { console.warn('Repo list error:', e); }
 
   // Show scoring toggles if dual-scoring data is present
   if (hasDualScoring()) {
