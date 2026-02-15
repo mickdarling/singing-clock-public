@@ -3,8 +3,9 @@
 Singing Clock - Local Server
 Serves the dashboard and provides a /api/scan endpoint to trigger rescans.
 
-Usage: python3 server.py [port]
+Usage: python3 server.py [port] [--bind-all]
 Default port: 8080
+Default bind: 127.0.0.1 (use --bind-all for 0.0.0.0)
 """
 
 import http.server
@@ -18,7 +19,15 @@ from urllib.parse import urlparse, parse_qs
 
 from datetime import datetime, timezone
 
-PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8080
+_positional = [a for a in sys.argv[1:] if not a.startswith("--")]
+try:
+    PORT = int(_positional[0]) if _positional else 8080
+    if not 1 <= PORT <= 65535:
+        raise ValueError(f"Port must be between 1 and 65535, got {PORT}")
+except (ValueError, IndexError) as e:
+    print(f"Error: {e}", file=sys.stderr)
+    print("Usage: python3 server.py [port] [--bind-all]", file=sys.stderr)
+    sys.exit(1)
 PROJECT_DIR = Path(__file__).parent
 
 
@@ -285,8 +294,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    server = http.server.HTTPServer(("127.0.0.1", PORT), Handler)
-    print(f"Singing Clock server running at http://localhost:{PORT}")
+    bind = "0.0.0.0" if "--bind-all" in sys.argv else "127.0.0.1"
+    server = http.server.HTTPServer((bind, PORT), Handler)
+    print(f"Singing Clock server running at http://{bind}:{PORT}")
     print(f"Press Ctrl+C to stop\n")
     try:
         server.serve_forever()
