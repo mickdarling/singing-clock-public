@@ -120,7 +120,7 @@ class TestFitModelsCommitRate(unittest.TestCase):
         data = _standard_monthly_data()
         models = fit_models(data, EPOCH)
         recovered_L = models["commit_rate"]["L"]
-        self.assertAlmostEqual(recovered_L, COMMIT_L, delta=COMMIT_L * 0.3,
+        self.assertAlmostEqual(recovered_L, COMMIT_L, delta=COMMIT_L * 0.15,
                                msg=f"L={recovered_L}, expected ~{COMMIT_L}")
 
     def test_zero_date_exists(self, mock_print):

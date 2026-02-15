@@ -127,7 +127,13 @@ class TestAggregateMonthly(unittest.TestCase):
             self.assertLessEqual(m["sophistication"], 1)
 
     def test_sophistication_ema_applied(self):
-        """EMA smoothing should make values differ from raw compute_sophistication()."""
+        """EMA smoothing should make values differ from raw compute_sophistication().
+
+        Uses deliberately divergent category mixes: month 1 is all low-level
+        (foundation only, soph ~0.03), month 2 is all high-level (agents+meta,
+        soph ~0.77). The EMA blends these, so month 2's smoothed value must
+        differ from its raw value.
+        """
         scored = [
             _make_scored(datetime.date(2025, 1, 10), 5.0,
                          {"foundation": 5, "agents": 0}, hash_id="a1"),
@@ -137,15 +143,13 @@ class TestAggregateMonthly(unittest.TestCase):
         end = datetime.date(2025, 2, 28)
         monthly, _, _ = aggregate_monthly(scored, EPOCH, end)
 
-        # Compute raw sophistication for month 2
+        # Raw sophistication for month 2 (no EMA)
         raw_soph_m2 = compute_sophistication({"agents": 8, "meta": 8})
-        # After EMA, month 2 should differ from raw (unless alpha=1)
-        if raw_soph_m2 > 0:
-            # The smoothed value blends with month 1, so it won't equal raw
-            raw_soph_m1 = compute_sophistication({"foundation": 5, "agents": 0})
-            if abs(raw_soph_m1 - raw_soph_m2) > 0.01:
-                self.assertNotAlmostEqual(monthly[1]["sophistication"],
-                                          round(raw_soph_m2, 3), places=3)
+        # The smoothed value blends with month 1's low sophistication,
+        # so it must differ from the raw high value
+        self.assertNotAlmostEqual(monthly[1]["sophistication"],
+                                  round(raw_soph_m2, 3), places=3,
+                                  msg="EMA smoothing had no effect on month 2")
 
     def test_multi_repo_merged_into_months(self):
         scored = [

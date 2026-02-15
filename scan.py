@@ -22,7 +22,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
-from collections import Counter, defaultdict
+from collections import defaultdict
 from pathlib import Path
 
 # ─── Configuration ───────────────────────────────────────────────────────
