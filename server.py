@@ -18,7 +18,8 @@ from urllib.parse import urlparse, parse_qs
 
 from datetime import datetime, timezone
 
-PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8080
+_positional = [a for a in sys.argv[1:] if not a.startswith("--")]
+PORT = int(_positional[0]) if _positional else 8080
 PROJECT_DIR = Path(__file__).parent
 
 
@@ -285,8 +286,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    server = http.server.HTTPServer(("127.0.0.1", PORT), Handler)
-    print(f"Singing Clock server running at http://localhost:{PORT}")
+    bind = "0.0.0.0" if "--bind-all" in sys.argv else "127.0.0.1"
+    server = http.server.HTTPServer((bind, PORT), Handler)
+    print(f"Singing Clock server running at http://{bind}:{PORT}")
     print(f"Press Ctrl+C to stop\n")
     try:
         server.serve_forever()
